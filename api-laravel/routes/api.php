@@ -18,6 +18,17 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::get('movies-1', 'CinemaCityController@index');
-Route::get('movies-2', 'MultikinoController@index');
-Route::get('movies-3', 'KinoMoranowController@index');
+Route::get('backup', 'BackupController@backupData');
+// Route::get('movies-1', 'CinemaCityController@index');
+// Route::get('movies-2', 'MultikinoController@index');
+// Route::get('movies-3', 'KinoMoranowController@index');
+
+Route::get('movies', 'MovieController@index');
+Route::post('movies', 'MovieController@store');
+Route::delete('movies/{id}','MovieController@delete');
+
+Route::get('cinemas', 'CinemaController@index');
+Route::post('cinemas', 'CinemaController@store');
+Route::delete('cinemas/{id}','CinemaController@delete');
+
+
