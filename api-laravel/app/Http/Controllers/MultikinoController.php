@@ -11,7 +11,7 @@ class MultikinoController extends BaseController
     {
         // $response = Http::get('https://multikino.pl/api/sitecore/WhatsOn/WhatsOnV2Alphabetic?cinemaId=43&data=12-08-2020&type=PRZEDSPRZEDAŻ');
 
-        $response = Http::get('https://multikino.pl/api/sitecore/WhatsOn/WhatsOnV2Alphabetic');
+        $response = Http::get('https://multikino.pl/api/sitecore/WhatsOn/WhatsOnV2Alphabetic?cinemaId=43');
         
 
         $result = collect();
@@ -23,9 +23,18 @@ class MultikinoController extends BaseController
                 "description" => $item['Synopsis'],
                 "description_url" => $item['FilmUrl'],
                 "trailer_url" => $item['TrailerUrl'],
-                "image_url" => $item['Poster'] 
+                "image_url" => $item['Poster'],
+                "language" => $this->getLanguage($item['WhatsOnAlphabeticCinemas'][0])
             ]);   
         }
         return $this->sendResponse($result, '');
+    }
+
+    function getLanguage($value){
+        foreach ($value["WhatsOnAlphabeticCinemas"] as $key => $item) {
+            foreach ($item["WhatsOnAlphabeticShedules"] as $key2 => $item2) {
+                return $item2['VersionTitle'];
+            }
+        }
     }
 }

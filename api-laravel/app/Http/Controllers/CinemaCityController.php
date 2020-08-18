@@ -18,7 +18,8 @@ class CinemaCityController extends BaseController
                 "title" => $item['name'],
                 "description_url" => $item['link'],
                 "trailer_url" => $item['videoLink'],
-                "image_url" => $item['posterLink'] 
+                "image_url" => $item['posterLink'],
+                "language" => $item['attributeIds'] 
             ]);   
         }
         return $this->sendResponse($result, '');
