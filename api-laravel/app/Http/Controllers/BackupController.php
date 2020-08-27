@@ -31,7 +31,7 @@ class BackupController extends BaseController
         $cinema = Cinema::firstWhere('name', '=', "Multikino");
         // $response = Http::get('https://multikino.pl/api/sitecore/WhatsOn/WhatsOnV2Alphabetic?cinemaId=43&data=12-08-2020&type=PRZEDSPRZEDAŻ');
 
-        $response = Http::get('https://multikino.pl/api/sitecore/WhatsOn/WhatsOnV2Alphabetic?cinemaId=43&data=28-08-2020');
+        $response = Http::get('https://multikino.pl/api/sitecore/WhatsOn/WhatsOnV2Alphabetic?cinemaId=43&data='.date("d-m-Y"));
         
 
         $result = collect();
@@ -48,14 +48,14 @@ class BackupController extends BaseController
 
             $this->_insertMovie($cinema, $linkCinemaMoviePage, $title, $description, $duration, $classification, $year, $trailer, $poster);
 
-            // $language = $this->_getLanguage($item['WhatsOnAlphabeticCinemas'][0]) 
+            // $language = $this->_getLanguageFromMultikino($item['WhatsOnAlphabeticCinemas'][0]) 
         }
         return true;
     }
 
     function _cinemacity(){
         $cinema = Cinema::firstWhere('name', '=', "Cinema City");
-        $response = Http::get('https://www.cinema-city.pl/pl/data-api-service/v1/quickbook/10103/film-events/in-cinema/1070/at-date/2020-08-28?attr=&lang=pl_PL');
+        $response = Http::get('https://www.cinema-city.pl/pl/data-api-service/v1/quickbook/10103/film-events/in-cinema/1070/at-date/'.date("Y-m-d").'?attr=&lang=pl_PL');
 
         $result = collect();
 
@@ -79,7 +79,7 @@ class BackupController extends BaseController
     function _kinoMoranow(){
         $client = new Client();
 
-        $crawler = $client->request('GET', 'https://kinomuranow.pl/repertuar?month=2020-08-28');
+        $crawler = $client->request('GET', 'https://kinomuranow.pl/repertuar?month='.date("Y-m-d"));
         $cinema = Cinema::firstWhere('name', '=', "Kino Muranow");
 
         $movie = $crawler
@@ -285,7 +285,7 @@ class BackupController extends BaseController
         }
     }
 
-    function _getLanguage($value){
+    function _getLanguageFromMultikino($value){
         foreach ($value["WhatsOnAlphabeticCinemas"] as $key => $item) {
             foreach ($item["WhatsOnAlphabeticShedules"] as $key2 => $item2) {
                 return $item2['VersionTitle'];
