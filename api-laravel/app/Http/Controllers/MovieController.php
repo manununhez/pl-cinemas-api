@@ -13,7 +13,7 @@ use Validator;
 class MovieController extends BaseController
 {
     public function index(){
-        $movies = Movie::all();
+        $movies = Movie::orderBy('title', 'ASC')->get();;
         
         $result = collect();
 
