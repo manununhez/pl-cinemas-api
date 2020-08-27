@@ -14,8 +14,8 @@ use Goutte\Client;
 class BackupController extends BaseController
 {
     public function backupData(){
-
         $successMultikino = $this->_multikino();
+        
         $successCinemacity = $this->_cinemacity();
 
         $successKinoMoranow = $this->_kinoMoranow();
@@ -31,7 +31,7 @@ class BackupController extends BaseController
         $cinema = Cinema::firstWhere('name', '=', "Multikino");
         // $response = Http::get('https://multikino.pl/api/sitecore/WhatsOn/WhatsOnV2Alphabetic?cinemaId=43&data=12-08-2020&type=PRZEDSPRZEDAŻ');
 
-        $response = Http::get('https://multikino.pl/api/sitecore/WhatsOn/WhatsOnV2Alphabetic?cinemaId=43');
+        $response = Http::get('https://multikino.pl/api/sitecore/WhatsOn/WhatsOnV2Alphabetic?cinemaId=43&data=28-08-2020');
         
 
         $result = collect();
@@ -40,8 +40,8 @@ class BackupController extends BaseController
             $linkCinemaMoviePage = "https://multikino.pl".$item['FilmUrl'];
             $title = $item['Title'];
             $description = $item['ShortSynopsis'];//<-----
-            $duration = "";
-            $classification = $item['CertificateAge'];//<-----
+            $duration = 0;
+            $classification = ($item['CertificateAge'] !== "") ? $item['CertificateAge']."+" : $item['CertificateAge'];//<-----
             $year = "" ;
             $poster = $item['Poster'];
             $trailer = $item['TrailerUrl'];
@@ -55,7 +55,7 @@ class BackupController extends BaseController
 
     function _cinemacity(){
         $cinema = Cinema::firstWhere('name', '=', "Cinema City");
-        $response = Http::get('https://www.cinema-city.pl/pl/data-api-service/v1/quickbook/10103/film-events/in-cinema/1070/at-date/2020-08-27?attr=&lang=pl_PL');
+        $response = Http::get('https://www.cinema-city.pl/pl/data-api-service/v1/quickbook/10103/film-events/in-cinema/1070/at-date/2020-08-28?attr=&lang=pl_PL');
 
         $result = collect();
 
@@ -63,7 +63,7 @@ class BackupController extends BaseController
             $linkCinemaMoviePage = $item['link'];
             $title = $item['name'];
             $description = "";
-            $duration = $item['length'];//<-----
+            $duration = ($item['length'] !== "") ? intval($item['length']) : 0;//<-----
             $classification = "";
             $year = $item['releaseYear']; //<-----
             $poster = $item['posterLink'];
@@ -79,21 +79,16 @@ class BackupController extends BaseController
     function _kinoMoranow(){
         $client = new Client();
 
-        $crawler = $client->request('GET', 'https://kinomuranow.pl/repertuar?month=2020-08');
+        $crawler = $client->request('GET', 'https://kinomuranow.pl/repertuar?month=2020-08-28');
         $cinema = Cinema::firstWhere('name', '=', "Kino Muranow");
 
         $movie = $crawler
             ->filter("div.rep-film-desc-wrapper")
-            // ->reduce(function ($node) use ($temp) {
-            //     return !in_array($node->filter("div.rep-film-desc-mobile a")->attr('href'), $temp);
-            // })
             ->each(function ($node) use ($cinema, $client) {
 
                 $linkCinemaMoviePage = "https://kinomuranow.pl/".$node->filter("div.rep-film-desc-mobile a")->attr('href');
                 
-
                 //----- Second crawling
-                // $client = new Client();
                 $secondCrawler = $client->request('GET', $linkCinemaMoviePage);
                 $movieDesc = $secondCrawler
                             ->filter("div.region-content div.content-movie")
@@ -156,6 +151,8 @@ class BackupController extends BaseController
                                 $duration = "";
                                 if($node2->filter("div.views-field-field-movie-duration div.field-content")->count() > 0){
                                     $duration = $node2->filter("div.views-field-field-movie-duration div.field-content")->text();
+                                    preg_match_all('!\d+!', $duration, $matches);//we extract duration from string. Ex.: '110min.' -> 110
+                                    $duration = $matches[0][0];
                                 }
 
                                 $result = [
@@ -170,9 +167,7 @@ class BackupController extends BaseController
                                 ];
                                 return $result;
                             });
-                //----- end second crawling
-                // $title = $node->filter("div.rep-film-desc-mobile div.rep-film-show-title")->text();
-                 
+                //----- end second crawling                 
 
                 $title = "";
                 if($node->filter("div.rep-film-desc-mobile div.rep-film-show-title")->count() > 0){
@@ -197,22 +192,10 @@ class BackupController extends BaseController
                 foreach($movieDetails as $key => $item) {
                     $classification = $item['category'];
                     $year = $item['production_date'];
-                    $duration = $item['duration'];
+                    $duration = intval($item['duration']);
                 }
 
                 $this->_insertMovie($cinema, $linkCinemaMoviePage, $title, $description, $duration, $classification, $year, $trailer, $poster);
-
-                // $result = [
-                //     "title" => $node->filter("div.rep-film-desc-mobile div.rep-film-show-title")->text(),
-                //     "description_url" =>  $node->filter("div.rep-film-desc-mobile a")->attr('href'),
-                //     "date" => $node->filter("div.rep-film-desc-mobile div.rep-film-show-date")->text(),
-                //     "image_url" => $node->filter("div.rep-film-show-hover-wrapper img")->attr('src')
-                // ];
-
-                // array_push($temp, $node->filter("div.rep-film-desc-mobile a")->attr('href'));
-
-                
-                //return $result;
         });
 
         return true;
@@ -222,33 +205,22 @@ class BackupController extends BaseController
         $movie = Movie::firstWhere('title', '=', $title);
 
         if(!$movie){ //if the movie does not exist
-            // echo("Movie does not exist");
             
-            if(gettype($duration) === "string"){//we extract duration from string. Ex.: '110min.' -> 110
-                preg_match_all('!\d+!', $duration, $matches);
-                $durationFormatted = intval($matches[0]);
-            } else {
-                $durationFormatted = $duration;
-            }
-             
             //first create the new movie
             $newMovie = Movie::create([
                 "title" => $title,
                 "description" => isset($description) ? $description : "",
-                "duration" => isset($durationFormatted) ? $durationFormatted : 0,
+                "duration" => $duration,
                 "classification" => isset($classification) ? $classification : "",
                 "release_year" => isset($year) ? $year : "",
                 "trailer_url" => isset($trailer) ? $trailer : "",
                 "poster_url" => isset($poster) ? $poster : ""
             ]);
 
-            //echo($newMovie);
-
             // //then associate the movie with the cinema
             if(!is_null($newMovie)){
                 $movieInserted = Movie::where("title","=", $title)->first();
-                // echo(response()->json($movieInserted['id']));
-                // echo("Insert moviesInCinema: ".$movieInserted->id." ".$cinema->id);
+
                 $moviesInCinema = MoviesInCinema::create([
                     "movie_id" => $movieInserted->id,
                     "cinema_id" => $cinema->id,
@@ -257,12 +229,53 @@ class BackupController extends BaseController
             }
 
         } else { //if the movie already exists
-            // echo("Movie does exist");
+
+            //We update movie values in case the new movie has them
+            $updateValues = false;
+
+            if($movie->title === "" && $title !== ""){
+                $movie->title = $title;
+                $updateValues = true;
+            }
+
+            if($movie->description === "" && $description !== ""){
+                $movie->description = $description;
+                $updateValues = true;
+            }
+
+            if($movie->duration === 0 && $duration > 0){
+                $movie->duration = $duration;
+                $updateValues = true;
+            }
+
+            if($movie->classification === "" && $classification !== ""){
+                $movie->classification = $classification;
+                $updateValues = true;
+            }
+
+            if($movie->release_year === "" && $year !== ""){
+                $movie->release_year = $year;
+                $updateValues = true;
+            }
+
+            if($movie->trailer_url === "" && $trailer !== ""){
+                $movie->trailer_url = $trailer;
+                $updateValues = true;
+            }
+
+            if($movie->poster_url === "" && $poster !== ""){
+                $movie->poster_url = $poster;
+                $updateValues = true;
+            }
+
+            if($updateValues)
+                $movie->save();
+
+            
             //we find if the cinema is already associated with the movie
             $moviesInCinema = MoviesInCinema::where("movie_id","=", $movie->id)->where("cinema_id","=", $cinema->id)->first();
         
             if(!$moviesInCinema){   //if the cinema if not associated with the movie, we create it
-                // echo("Insert moviesInCinema: ".$movie->id." ".$cinema->id);
                 $moviesInCinema = MoviesInCinema::create([
                     "movie_id" => $movie->id,
                     "cinema_id" => $cinema->id,
