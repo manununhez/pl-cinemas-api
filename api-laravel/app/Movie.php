@@ -12,7 +12,7 @@ class Movie extends Model
     public $incrementing = false;
     
     protected $fillable = [
-        'title','description','trailer_url', 'poster_url'
+        'title','description','duration','classification','release_year','trailer_url', 'poster_url'
     ];
 
     public function cinemas(){

@@ -14,8 +14,10 @@ use Goutte\Client;
 class BackupController extends BaseController
 {
     public function backupData(){
+
         $successMultikino = $this->_multikino();
         $successCinemacity = $this->_cinemacity();
+
         $successKinoMoranow = $this->_kinoMoranow();
 
         if($successMultikino && $successCinemacity && $successKinoMoranow)
@@ -35,36 +37,41 @@ class BackupController extends BaseController
         $result = collect();
 
         foreach ($response["WhatsOnAlphabeticFilms"] as $key => $item) {
-            $this->_insertMovie($cinema, $item['Title'], $item['Synopsis'], $item['TrailerUrl'], $item['Poster']);
-            // $result->push([ 
-            //     "title" => $item['Title'],
-            //     "short_description" => $item['ShortSynopsis'],
-            //     "description" => $item['Synopsis'],
-            //     "description_url" => $item['FilmUrl'],
-            //     "trailer_url" => $item['TrailerUrl'],
-            //     "image_url" => $item['Poster'],
-            //     "language" => $this->_getLanguage($item['WhatsOnAlphabeticCinemas'][0])
-            // ]);   
+            $linkCinemaMoviePage = "https://multikino.pl".$item['FilmUrl'];
+            $title = $item['Title'];
+            $description = $item['ShortSynopsis'];//<-----
+            $duration = "";
+            $classification = $item['CertificateAge'];//<-----
+            $year = "" ;
+            $poster = $item['Poster'];
+            $trailer = $item['TrailerUrl'];
+
+            $this->_insertMovie($cinema, $linkCinemaMoviePage, $title, $description, $duration, $classification, $year, $trailer, $poster);
+
+            // $language = $this->_getLanguage($item['WhatsOnAlphabeticCinemas'][0]) 
         }
         return true;
     }
 
     function _cinemacity(){
         $cinema = Cinema::firstWhere('name', '=', "Cinema City");
-        $response = Http::get('https://www.cinema-city.pl/pl/data-api-service/v1/quickbook/10103/film-events/in-cinema/1070/at-date/2020-08-18?attr=&lang=pl_PL');
+        $response = Http::get('https://www.cinema-city.pl/pl/data-api-service/v1/quickbook/10103/film-events/in-cinema/1070/at-date/2020-08-27?attr=&lang=pl_PL');
 
         $result = collect();
 
         foreach ($response["body"]["films"] as $key => $item) {
-            $this->_insertMovie($cinema, $item['name'], $item['link'], $item['videoLink'], $item['posterLink']);
+            $linkCinemaMoviePage = $item['link'];
+            $title = $item['name'];
+            $description = "";
+            $duration = $item['length'];//<-----
+            $classification = "";
+            $year = $item['releaseYear']; //<-----
+            $poster = $item['posterLink'];
+            $trailer = $item['videoLink'];
 
-            // $result->push([ 
-            //     "title" => $item['name'],
-            //     "description_url" => $item['link'],
-            //     "trailer_url" => $item['videoLink'],
-            //     "image_url" => $item['posterLink'],
-            //     "language" => $item['attributeIds'] 
-            // ]);   
+            $this->_insertMovie($cinema, $linkCinemaMoviePage, $title, $description, $duration, $classification, $year, $trailer, $poster);
+
+            // $language = $item['attributeIds']
         }
         return true;
     }
@@ -80,13 +87,120 @@ class BackupController extends BaseController
             // ->reduce(function ($node) use ($temp) {
             //     return !in_array($node->filter("div.rep-film-desc-mobile a")->attr('href'), $temp);
             // })
-            ->each(function ($node) use ($cinema) {
-                $title = $node->filter("div.rep-film-desc-mobile div.rep-film-show-title")->text();
-                $description = $node->filter("div.rep-film-desc-mobile a")->attr('href');
-                $poster = $node->filter("div.rep-film-show-hover-wrapper img")->attr('src');
-                $trailer = $node->filter("div.rep-film-show-hover-wrapper img")->attr('src');
+            ->each(function ($node) use ($cinema, $client) {
 
-                $this->_insertMovie($cinema, $title, $description, $trailer, $poster);
+                $linkCinemaMoviePage = "https://kinomuranow.pl/".$node->filter("div.rep-film-desc-mobile a")->attr('href');
+                
+
+                //----- Second crawling
+                // $client = new Client();
+                $secondCrawler = $client->request('GET', $linkCinemaMoviePage);
+                $movieDesc = $secondCrawler
+                            ->filter("div.region-content div.content-movie")
+                            ->each(function ($node2) {
+                                $description = "";
+                                if($node2->filter("div.content-movie-body p")->count() > 0){
+                                    $description = $node2->filter("div.content-movie-body p")->text();
+                                }
+
+                                $trailer = "";
+                                if($node2->filter("div.content-movie-simple-video div.youtube-container--responsive iframe")->count() > 0){
+                                    $trailer = $node2->filter("div.content-movie-simple-video div.youtube-container--responsive iframe")->attr('src');
+                                }
+
+
+                                $result = [
+                                    "description" => $description,
+                                    "trailer_url" => $trailer
+                                ];
+                                return $result;
+                            });
+                $movieDetails = $secondCrawler
+                            ->filter("div.view-movies div.movie-info-box-row")
+                            ->each(function ($node2) {
+                                $titlePL = "";
+                                if($node2->filter("div.views-field-field-movie-polish-title div.field-content")->count() > 0){
+                                    $titlePL = $node2->filter("div.views-field-field-movie-polish-title div.field-content")->text();
+                                }
+
+                                $language = "";
+                                if($node2->filter("div.views-field-field-movie-language div.field-content")->count() > 0){
+                                    $language = $node2->filter("div.views-field-field-movie-language div.field-content")->text();
+                                }
+
+                                $category = "";
+                                if($node2->filter("div.views-field-field-movie-category div.field-content")->count() > 0){
+                                    $category = $node2->filter("div.views-field-field-movie-category div.field-content")->text();
+                                }
+
+                                $titleOriginal = "";
+                                if($node2->filter("div.views-field-field-movie-original-title div.field-content")->count() > 0){
+                                    $titleOriginal = $node2->filter("div.views-field-field-movie-original-title div.field-content")->text();
+                                }
+
+                                $direction = "";
+                                if($node2->filter("div.views-field-field-movie-direction div.field-content")->count() > 0){
+                                    $direction = $node2->filter("div.views-field-field-movie-direction div.field-content")->text();
+                                }
+
+                                $productionDate = "";
+                                if($node2->filter("div.views-field-field-movie-production-date div.field-content")->count() > 0){
+                                    $productionDate = $node2->filter("div.views-field-field-movie-production-date div.field-content")->text();
+                                }
+
+                                $productionCountry = "";
+                                if($node2->filter("div.views-field-field-movie-production-country div.field-content")->count() > 0){
+                                    $productionCountry = $node2->filter("div.views-field-field-movie-production-country div.field-content")->text();
+                                }
+
+                                $duration = "";
+                                if($node2->filter("div.views-field-field-movie-duration div.field-content")->count() > 0){
+                                    $duration = $node2->filter("div.views-field-field-movie-duration div.field-content")->text();
+                                }
+
+                                $result = [
+                                    "title_pl" => $titlePL,
+                                    "title_original" => $titleOriginal,
+                                    "category" => $category,
+                                    "language" => $language,
+                                    "direction" => $direction,
+                                    "production_date" => $productionDate,
+                                    "production_country" => $productionCountry,
+                                    "duration" => $duration,
+                                ];
+                                return $result;
+                            });
+                //----- end second crawling
+                // $title = $node->filter("div.rep-film-desc-mobile div.rep-film-show-title")->text();
+                 
+
+                $title = "";
+                if($node->filter("div.rep-film-desc-mobile div.rep-film-show-title")->count() > 0){
+                    $title = $node->filter("div.rep-film-desc-mobile div.rep-film-show-title")->text();
+                }
+
+                $poster = "";
+                if($node->filter("div.rep-film-show-hover-wrapper img")->count() > 0){
+                    $poster = $node->filter("div.rep-film-show-hover-wrapper img")->attr('src');
+                }
+
+                $description = "";
+                $trailer = "";
+                foreach ($movieDesc as $key => $item) {
+                    $description = $item['description'];
+                    $trailer = $item['trailer_url'];
+                }
+
+                $duration = "";
+                $classification = "";
+                $year = "";
+                foreach($movieDetails as $key => $item) {
+                    $classification = $item['category'];
+                    $year = $item['production_date'];
+                    $duration = $item['duration'];
+                }
+
+                $this->_insertMovie($cinema, $linkCinemaMoviePage, $title, $description, $duration, $classification, $year, $trailer, $poster);
 
                 // $result = [
                 //     "title" => $node->filter("div.rep-film-desc-mobile div.rep-film-show-title")->text(),
@@ -104,15 +218,26 @@ class BackupController extends BaseController
         return true;
     }
 
-    function _insertMovie($cinema, $title, $description, $trailer, $poster){
+    function _insertMovie($cinema, $linkCinemaMoviePage, $title, $description, $duration, $classification, $year, $trailer, $poster){
         $movie = Movie::firstWhere('title', '=', $title);
 
         if(!$movie){ //if the movie does not exist
-            echo("Movie does not exist");
+            // echo("Movie does not exist");
+            
+            if(gettype($duration) === "string"){//we extract duration from string. Ex.: '110min.' -> 110
+                preg_match_all('!\d+!', $duration, $matches);
+                $durationFormatted = intval($matches[0]);
+            } else {
+                $durationFormatted = $duration;
+            }
+             
             //first create the new movie
             $newMovie = Movie::create([
                 "title" => $title,
                 "description" => isset($description) ? $description : "",
+                "duration" => isset($durationFormatted) ? $durationFormatted : 0,
+                "classification" => isset($classification) ? $classification : "",
+                "release_year" => isset($year) ? $year : "",
                 "trailer_url" => isset($trailer) ? $trailer : "",
                 "poster_url" => isset($poster) ? $poster : ""
             ]);
@@ -123,23 +248,25 @@ class BackupController extends BaseController
             if(!is_null($newMovie)){
                 $movieInserted = Movie::where("title","=", $title)->first();
                 // echo(response()->json($movieInserted['id']));
-                echo("Insert moviesInCinema: ".$movieInserted->id." ".$cinema->id);
+                // echo("Insert moviesInCinema: ".$movieInserted->id." ".$cinema->id);
                 $moviesInCinema = MoviesInCinema::create([
                     "movie_id" => $movieInserted->id,
-                    "cinema_id" => $cinema->id
+                    "cinema_id" => $cinema->id,
+                    "cinema_movie_url" => $linkCinemaMoviePage
                 ]);
             }
 
         } else { //if the movie already exists
-            echo("Movie does exist");
+            // echo("Movie does exist");
             //we find if the cinema is already associated with the movie
             $moviesInCinema = MoviesInCinema::where("movie_id","=", $movie->id)->where("cinema_id","=", $cinema->id)->first();
         
             if(!$moviesInCinema){   //if the cinema if not associated with the movie, we create it
-                echo("Insert moviesInCinema: ".$movie->id." ".$cinema->id);
+                // echo("Insert moviesInCinema: ".$movie->id." ".$cinema->id);
                 $moviesInCinema = MoviesInCinema::create([
                     "movie_id" => $movie->id,
-                    "cinema_id" => $cinema->id
+                    "cinema_id" => $cinema->id,
+                    "cinema_movie_url" => $linkCinemaMoviePage
                 ]);
             }
         }

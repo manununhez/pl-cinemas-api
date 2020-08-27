@@ -20,12 +20,21 @@ class MovieController extends BaseController
         foreach($movies as $movie){
             $cinemas = MoviesInCinema::
                             where("movie_id", "=", $movie->id)
-                            ->select('cinema_id')
+                            ->select('cinema_id','cinema_movie_url')
                             ->get();
             $resultCinemas = collect();
             
             foreach($cinemas as $cinema){
-                $resultCinemas->push(Cinema::find($cinema->cinema_id));
+                $cinemaTmp = Cinema::find($cinema->cinema_id);
+
+                $resultCinemas->push([
+                    "id" => $cinemaTmp['id'],
+                    "name" => $cinemaTmp['name'],
+                    "website" => $cinemaTmp['website'],
+                    "logo_url" => $cinemaTmp['logo_url'],
+                    "cinema_movie_url" => $cinema->cinema_movie_url,
+
+                ]);
             }
             
             $result->push([

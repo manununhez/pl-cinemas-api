@@ -9,7 +9,7 @@ class CinemaCityController extends BaseController
 {
     public function index()
     {
-        $response = Http::get('https://www.cinema-city.pl/pl/data-api-service/v1/quickbook/10103/film-events/in-cinema/1070/at-date/2020-08-12?attr=&lang=pl_PL');
+        $response = Http::get('https://www.cinema-city.pl/pl/data-api-service/v1/quickbook/10103/film-events/in-cinema/1070/at-date/2020-08-26?attr=&lang=pl_PL');
 
         $result = collect();
 

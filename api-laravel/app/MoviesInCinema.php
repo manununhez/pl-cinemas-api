@@ -8,7 +8,7 @@ class MoviesInCinema extends Model
 {
     protected $table = 'movies_in_cinema';
 
-    protected $fillable = ['movie_id','cinema_id'];
+    protected $fillable = ['movie_id','cinema_id', 'cinema_movie_url'];
 
     public function movies(){
         return $this->belongsTo(Movie::class, 'id', 'movie_id');
