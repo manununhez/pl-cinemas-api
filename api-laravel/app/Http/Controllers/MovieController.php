@@ -13,14 +13,14 @@ use Validator;
 class MovieController extends BaseController
 {
     public function index(){
-        $movies = Movie::orderBy('title', 'ASC')->get();;
+        $movies = Movie::orderBy(Movie::TITLE, 'ASC')->get();;
         
         $result = collect();
 
         foreach($movies as $movie){
             $cinemas = MoviesInCinema::
-                            where("movie_id", "=", $movie->id)
-                            ->select('cinema_id','cinema_movie_url')
+                            where(MoviesInCinema::MOVIE_ID, "=", $movie->id)
+                            ->select(MoviesInCinema::CINEMA_ID, MoviesInCinema::CINEMA_MOVIE_URL)
                             ->get();
             $resultCinemas = collect();
             
@@ -28,11 +28,11 @@ class MovieController extends BaseController
                 $cinemaTmp = Cinema::find($cinema->cinema_id);
 
                 $resultCinemas->push([
-                    "id" => $cinemaTmp['id'],
-                    "name" => $cinemaTmp['name'],
-                    "website" => $cinemaTmp['website'],
-                    "logo_url" => $cinemaTmp['logo_url'],
-                    "cinema_movie_url" => $cinema->cinema_movie_url,
+                    Cinema::ID => $cinemaTmp[Cinema::ID],
+                    Cinema::NAME => $cinemaTmp[Cinema::NAME],
+                    Cinema::WEBSITE => $cinemaTmp[Cinema::WEBSITE],
+                    Cinema::LOGO => $cinemaTmp[Cinema::LOGO],
+                    MoviesInCinema::CINEMA_MOVIE_URL => $cinema->cinema_movie_url,
 
                 ]);
             }
