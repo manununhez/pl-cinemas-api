@@ -17,12 +17,15 @@ class CreateMoviesInCinemaTable extends Migration
             $table->increments('id');
             $table->bigInteger('movie_id')->unsigned();
             $table->bigInteger('cinema_id')->unsigned();
+            $table->bigInteger('location_id')->unsigned();
+            $table->string('cinema_movie_url');
             $table->timestamps();
 
-            $table->unique(['movie_id', 'cinema_id'], 'un_movies_cinema');
+            $table->unique(['movie_id', 'cinema_id', 'location_id'], 'un_movies_cinema');
 
             $table->foreign('movie_id')->references('id')->on('movies')->onDelete('cascade');
             $table->foreign('cinema_id')->references('id')->on('cinemas')->onDelete('cascade');
+            $table->foreign('location_id')->references('id')->on('cinema_locations')->onDelete('cascade');
         });
     }
 

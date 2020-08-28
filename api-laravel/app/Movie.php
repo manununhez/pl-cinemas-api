@@ -17,8 +17,8 @@ class Movie extends Model
 
     protected $table = 'movies';
 
-    // If you wish to use a non-incrementing or a non-numeric primary key you must set the public $incrementing property on your model to false
-    public $incrementing = false;
+    // // If you wish to use a non-incrementing or a non-numeric primary key you must set the public $incrementing property on your model to false
+    // public $incrementing = false;
     
     protected $fillable = [
         self::TITLE, self::DESCRIPTION, self::DURATION, self::CLASSIFICATION, self::YEAR, self::TRAILER, self::POSTER
