@@ -10,6 +10,7 @@ class CinemaLocation extends Model
     const LOCATION_ID = 'location_id';
     const NAME = 'name';
     const CINEMA_ID = 'cinema_id';
+    const CITY = 'city';
     const COORD_LATITUDE = 'coord_latitude';
     const COORD_LONGITUDE = 'coord_longitude';
 
@@ -19,6 +20,10 @@ class CinemaLocation extends Model
     // public $incrementing = false;
     
     protected $fillable = [
-        self::NAME, self::CINEMA_ID, self::LOCATION_ID, self::COORD_LATITUDE, self::COORD_LONGITUDE
+        self::NAME, self::CINEMA_ID, self::CITY, self::LOCATION_ID, self::COORD_LATITUDE, self::COORD_LONGITUDE
     ];
+
+    function getCinemas(){
+        return $this->distinct()->orderBy('city')->get(['city']);
+    }
 }

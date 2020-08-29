@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 
 use App\Movie;
 use App\Cinema;
+use App\CinemaLocation;
 use App\MoviesInCinema;
 use Validator;
 
@@ -13,6 +14,8 @@ use Validator;
 class MovieController extends BaseController
 {
     public function index(){
+        //TODO add a request parameter "Cinema" to filter the list of movies per city
+        //TODO add a request parameter "Date" to filter the list of movies per date
         $movies = Movie::orderBy(Movie::TITLE, 'ASC')->get();;
         
         $result = collect();
@@ -20,20 +23,25 @@ class MovieController extends BaseController
         foreach($movies as $movie){
             $cinemas = MoviesInCinema::
                             where(MoviesInCinema::MOVIE_ID, "=", $movie->id)
-                            ->select(MoviesInCinema::CINEMA_ID, MoviesInCinema::CINEMA_MOVIE_URL)
+                            // ->select(MoviesInCinema::CINEMA_ID, MoviesInCinema::CINEMA_MOVIE_URL)
                             ->get();
             $resultCinemas = collect();
             
             foreach($cinemas as $cinema){
+                
+                $locationTmp = CinemaLocation::where(MoviesInCinema::ID, "=", $cinema->location_id)
+                                            ->first();
+
                 $cinemaTmp = Cinema::find($cinema->cinema_id);
 
                 $resultCinemas->push([
-                    Cinema::ID => $cinemaTmp[Cinema::ID],
-                    Cinema::NAME => $cinemaTmp[Cinema::NAME],
-                    Cinema::WEBSITE => $cinemaTmp[Cinema::WEBSITE],
+                    CinemaLocation::CINEMA_ID => $locationTmp[CinemaLocation::CINEMA_ID],
+                    CinemaLocation::LOCATION_ID => $locationTmp[CinemaLocation::LOCATION_ID],
+                    CinemaLocation::NAME => $locationTmp[CinemaLocation::NAME],
+                    CinemaLocation::COORD_LATITUDE => $locationTmp[CinemaLocation::COORD_LATITUDE],
+                    CinemaLocation::COORD_LONGITUDE => $locationTmp[CinemaLocation::COORD_LONGITUDE],
                     Cinema::LOGO => $cinemaTmp[Cinema::LOGO],
-                    MoviesInCinema::CINEMA_MOVIE_URL => $cinema->cinema_movie_url,
-
+                    MoviesInCinema::CINEMA_MOVIE_URL => $cinema[MoviesInCinema::CINEMA_MOVIE_URL],
                 ]);
             }
             

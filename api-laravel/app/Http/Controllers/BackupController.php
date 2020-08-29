@@ -12,6 +12,7 @@ use App\CinemaLocation;
 
 use Goutte\Client;
 
+//TODO Add backup of movies for the next X days in advance
 class BackupController extends BaseController
 {
     const MULTIKINO = "Multikino";
@@ -40,7 +41,7 @@ class BackupController extends BaseController
     function _multikino(){
     
         $cinema = Cinema::firstWhere(Cinema::NAME, '=', self::MULTIKINO);
-        $date = "29-08-2020";//date("d-m-Y");//now
+        $date = "30-08-2020";//date("d-m-Y");//now
         
         $responseCinemas = $this->getMultikinoCinemasURL();
         foreach ($responseCinemas["venues"] as $keyC => $itemC) {
@@ -51,10 +52,12 @@ class BackupController extends BaseController
                                 ->first();
                 //if locations does not exist, we'll create it
                 if(is_null($cinemaLocation)){ 
+                    $city = explode(" ", $itemD['search']);
                     //create locations of the cinema
                     $cinemaLocation = CinemaLocation::create([
                         CinemaLocation::LOCATION_ID => $itemD['id'],
-                        CinemaLocation::NAME => $itemD['name'],
+                        CinemaLocation::NAME => $itemD['search'],
+                        CinemaLocation::CITY => $city[0],
                         CinemaLocation::CINEMA_ID => $cinema->id
                     ]);
                 }
@@ -83,7 +86,7 @@ class BackupController extends BaseController
     }
 
     function _cinemacity(){
-        $date = "2020-08-29";//date("Y-m-d");
+        $date = "2020-08-30";//date("Y-m-d");
         $language = "pl_PL";
 
         $cinema = Cinema::firstWhere(Cinema::NAME, '=', self::CINEMACITY);
@@ -100,6 +103,7 @@ class BackupController extends BaseController
                 $cinemaLocation = CinemaLocation::create([
                     CinemaLocation::LOCATION_ID => $itemC['id'],
                     CinemaLocation::NAME => $itemC['displayName'],
+                    CinemaLocation::CITY => $itemC['addressInfo']['city'],
                     CinemaLocation::CINEMA_ID => $cinema->id,
                     CinemaLocation::COORD_LATITUDE => $itemC['latitude'],
                     CinemaLocation::COORD_LONGITUDE => $itemC['longitude']
@@ -129,7 +133,7 @@ class BackupController extends BaseController
     }
 
     function _kinoMoranow(){
-        $date = "2020-08-29";//date("Y-m-d");
+        $date = "2020-08-30";//date("Y-m-d");
         $client = new Client();
 
         $crawler = $client->request('GET', $this->getKinoMoranowMoviesURL($date));
@@ -137,6 +141,7 @@ class BackupController extends BaseController
 
         $cinemaLocationKinoMuranow = 156;
         $cinemaLocationName = "Warszawa";
+        $cityName = "Warszawa";
         //CREATE CINEMA LOCATIONS
         $cinemaLocation = CinemaLocation::where(CinemaLocation::LOCATION_ID, '=', $cinemaLocationKinoMuranow)
                                         ->where(CinemaLocation::CINEMA_ID, '=', $cinema->id)
@@ -147,7 +152,9 @@ class BackupController extends BaseController
             $cinemaLocation = CinemaLocation::create([
                 CinemaLocation::LOCATION_ID => $cinemaLocationKinoMuranow,
                 CinemaLocation::NAME => $cinemaLocationName,
-                CinemaLocation::CINEMA_ID => $cinema->id
+                CinemaLocation::CINEMA_ID => $cinema->id,
+                CinemaLocation::CITY => $cityName,
+
             ]);
         }
 
