@@ -10,6 +10,8 @@ use App\Cinema;
 use App\MoviesInCinema;
 use App\CinemaLocation;
 
+use DateTime;
+use DateInterval;
 use Goutte\Client;
 
 //TODO Add backup of movies for the next X days in advance
@@ -41,7 +43,9 @@ class BackupController extends BaseController
     function _multikino(){
     
         $cinema = Cinema::firstWhere(Cinema::NAME, '=', self::MULTIKINO);
-        $date = "30-08-2020";//date("d-m-Y");//now
+        $date = new DateTime();
+        $date->add(new DateInterval('P1D'));//('P30D'));
+        $date = $date->format('d-m-Y');//date("d-m-Y");//now
         
         $responseCinemas = $this->getMultikinoCinemasURL();
         foreach ($responseCinemas["venues"] as $keyC => $itemC) {
@@ -65,12 +69,16 @@ class BackupController extends BaseController
                 //GET movies from the selected cinema location
                 $responseMovies = $this->getMultikinoMoviesURL($cinemaLocation->location_id, $date);
                 foreach ($responseMovies["WhatsOnAlphabeticFilms"] as $key => $item) {
+
+                    $durationFromFilmParams = collect($item['FilmParams']);
+                    $durationFromFilmParams = $durationFromFilmParams->pluck('Title');
+
                     $linkCinemaMoviePage = self::MULTIKINO_BASE_URL.$item['FilmUrl'];
                     
                     $movie = new Movie;
                     $movie->title = $this->isNotNull($item['Title']);
                     $movie->description = $this->isNotNull($item['ShortSynopsis']);//<-----
-                    $movie->duration = 0;
+                    $movie->duration = (strpos($durationFromFilmParams->last(), "minut") !== false) ? explode(" ",$durationFromFilmParams->last())[0] : 0;
                     $movie->classification = ($item['CertificateAge'] !== "") ? $item['CertificateAge']."+" : $item['CertificateAge'];//<-----
                     $movie->release_year = "" ;
                     $movie->poster_url = $this->isNotNull($item['Poster']);
@@ -86,7 +94,9 @@ class BackupController extends BaseController
     }
 
     function _cinemacity(){
-        $date = "2020-08-30";//date("Y-m-d");
+        $date = new DateTime();
+        $date->add(new DateInterval('P1D'));//('P30D'));
+        $date = $date->format('Y-m-d');//date("Y-m-d");
         $language = "pl_PL";
 
         $cinema = Cinema::firstWhere(Cinema::NAME, '=', self::CINEMACITY);
@@ -133,7 +143,9 @@ class BackupController extends BaseController
     }
 
     function _kinoMoranow(){
-        $date = "2020-08-30";//date("Y-m-d");
+        $date = new DateTime();
+        $date->add(new DateInterval('P1D'));//('P30D'));
+        $date = $date->format('Y-m-d');//date("Y-m-d");
         $client = new Client();
 
         $crawler = $client->request('GET', $this->getKinoMoranowMoviesURL($date));
