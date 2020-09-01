@@ -14,7 +14,6 @@ use Validator;
 class MovieController extends BaseController
 {
     public function index(){
-        //TODO add a request parameter "Cinema" to filter the list of movies per city
         //TODO add a request parameter "Date" to filter the list of movies per date
         $movies = Movie::orderBy(Movie::TITLE, 'ASC')->get();;
         
@@ -32,6 +31,7 @@ class MovieController extends BaseController
                 $locationTmp = CinemaLocation::where(MoviesInCinema::ID, "=", $cinema->location_id)
                                             ->first();
 
+                
                 $cinemaTmp = Cinema::find($cinema->cinema_id);
 
                 $resultCinemas->push([
@@ -54,6 +54,53 @@ class MovieController extends BaseController
         // $movies = MoviesInCinema::with('movies')->with('cinemas')->get();
 
         return $this->sendResponse($result, 'movies retrieved successfully.');
+    }
+
+
+    public function getMoviesByLocation(Request $request){
+        
+        $locationSearchTerm = isset($request->city) ? $request->city : "Warszawa";
+
+        $locationIDTmp = CinemaLocation::where(CinemaLocation::CITY, "LIKE", $locationSearchTerm)
+                                        ->pluck(CinemaLocation::ID);
+        
+        $movieCinemaTmp = MoviesInCinema::whereIN(MoviesInCinema::LOCATION_ID, $locationIDTmp)
+                                        ->get();
+        
+        $moviesTmp = $movieCinemaTmp->pluck(MoviesInCinema::MOVIE_ID)->unique();
+        
+        $resultMoviesID = collect();
+        foreach($moviesTmp as $key => $value){
+            $movie = Movie::where(Movie::ID, "=", $value)->first();
+            
+            $locations = MoviesInCinema::where(MoviesInCinema::MOVIE_ID, "=", $movie->id)
+                                        ->whereIn(MoviesInCinema::LOCATION_ID, $locationIDTmp)
+                                        ->get();
+            
+            $resultCinemas = collect();
+            foreach($locations as $location){
+                $locationTmp = CinemaLocation::where(MoviesInCinema::ID, "=", $location->location_id)
+                                                ->first();
+               
+                $cinemaTmp = Cinema::find($location->cinema_id);
+                $resultCinemas->push([
+                    CinemaLocation::CINEMA_ID => $locationTmp[CinemaLocation::CINEMA_ID],
+                    CinemaLocation::LOCATION_ID => $locationTmp[CinemaLocation::LOCATION_ID],
+                    CinemaLocation::NAME => $locationTmp[CinemaLocation::NAME],
+                    CinemaLocation::COORD_LATITUDE => $locationTmp[CinemaLocation::COORD_LATITUDE],
+                    CinemaLocation::COORD_LONGITUDE => $locationTmp[CinemaLocation::COORD_LONGITUDE],
+                    Cinema::LOGO => $cinemaTmp[Cinema::LOGO],
+                    MoviesInCinema::CINEMA_MOVIE_URL => $location[MoviesInCinema::CINEMA_MOVIE_URL],
+                ]);
+            }
+
+            $resultMoviesID->push([
+                "movie" => $movie,
+                "cinemas" => $resultCinemas
+            ]);
+        }
+        
+        return $this->sendResponse($resultMoviesID, 'movies retrieved successfully.');
     }
 
     /**

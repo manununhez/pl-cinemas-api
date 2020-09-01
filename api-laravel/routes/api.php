@@ -34,7 +34,8 @@ Route::get('locations', function (Request $request) {
     return $result;
 });
 
-Route::get('movies', 'MovieController@index');
+Route::get('movies', 'MovieController@getMoviesByLocation');
+// Route::get('movies', 'MovieController@index');
 Route::post('movies', 'MovieController@store');
 Route::delete('movies/{id}','MovieController@delete');
 
