@@ -26,7 +26,7 @@ class BackupController extends BaseController
     const KINO_MORANOW = "Kino Muranow";
     const KINO_MORANOW_BASE_URL = "https://kinomuranow.pl/";
 
-    const DAYS_IN_ADVANCE = 15;
+    const DAYS_IN_ADVANCE = 10;
     const DAYS_START_FROM_TODAY = 0;
     const DAYS_START_FROM_TOMORROW = 1;
 
@@ -148,6 +148,9 @@ class BackupController extends BaseController
                 ]);
             }
 
+            $websiteCinema = $itemC['link'];
+            $cinemaID = $itemC['id'];
+
             //GET movies from the selected cinema location
             $responseMovies = $this->getCinemaCityMoviesURL($cinemaLocation->location_id, $date, $language);
             foreach ($responseMovies["body"]["films"] as $key => $item) {
@@ -162,7 +165,8 @@ class BackupController extends BaseController
                 }
 
 
-                $linkCinemaMoviePage = $item['link'];
+                // $linkCinemaMoviePage = $item['link'];
+                $linkCinemaMoviePage = $websiteCinema."/".$cinemaID."#/buy-tickets-by-cinema?in-cinema=".$cinemaLocation->id."&at=".$date."&for-movie=".$item["id"]."&view-mode=list";
 
                 $movie = new Movie;
                 $movie->title = $this->isNotNull($item['name']);
