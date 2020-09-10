@@ -60,21 +60,28 @@ class MovieController extends BaseController
     public function getMoviesByLocation(Request $request){
         
         $locationSearchTerm = isset($request->city) ? $request->city : "Warszawa";
+        $dateSearchTerm = isset($request->date) ? $request->date : date("Y-m-d");//today
 
         $locationIDTmp = CinemaLocation::where(CinemaLocation::CITY, "LIKE", $locationSearchTerm)
                                         ->pluck(CinemaLocation::ID);
         
         $movieCinemaTmp = MoviesInCinema::whereIN(MoviesInCinema::LOCATION_ID, $locationIDTmp)
+                                        ->where(MoviesInCinema::DAY_TITLE, "=", $dateSearchTerm)
                                         ->get();
         
         $moviesTmp = $movieCinemaTmp->pluck(MoviesInCinema::MOVIE_ID)->unique();
+
+        $moviesIDOrdered = Movie::whereIN(Movie::ID, $moviesTmp)
+                                ->orderBy(Movie::TITLE)
+                                ->pluck(Movie::ID); //Order asc by Title
         
         $resultMoviesID = collect();
-        foreach($moviesTmp as $key => $value){
+        foreach($moviesIDOrdered as $key => $value){
             $movie = Movie::where(Movie::ID, "=", $value)->first();
             
             $locations = MoviesInCinema::where(MoviesInCinema::MOVIE_ID, "=", $movie->id)
                                         ->whereIn(MoviesInCinema::LOCATION_ID, $locationIDTmp)
+                                        ->where(MoviesInCinema::DAY_TITLE, "=", $dateSearchTerm)
                                         ->get();
             
             $resultCinemas = collect();
@@ -90,10 +97,12 @@ class MovieController extends BaseController
                     CinemaLocation::COORD_LATITUDE => $locationTmp[CinemaLocation::COORD_LATITUDE],
                     CinemaLocation::COORD_LONGITUDE => $locationTmp[CinemaLocation::COORD_LONGITUDE],
                     Cinema::LOGO => $cinemaTmp[Cinema::LOGO],
-                    MoviesInCinema::CINEMA_MOVIE_URL => $location[MoviesInCinema::CINEMA_MOVIE_URL],
+                    MoviesInCinema::CINEMA_MOVIE_URL => $location[MoviesInCinema::CINEMA_MOVIE_URL]
                 ]);
             }
 
+            $movie[MoviesInCinema::DAY_TITLE] = $dateSearchTerm;
+            $movie[CinemaLocation::CITY] = $locationSearchTerm;
             $resultMoviesID->push([
                 "movie" => $movie,
                 "cinemas" => $resultCinemas

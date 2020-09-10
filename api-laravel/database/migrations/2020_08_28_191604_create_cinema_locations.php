@@ -15,6 +15,8 @@ class CreateCinemaLocations extends Migration
     {
         Schema::create('cinema_locations', function (Blueprint $table) {
             $table->id();
+            $table->string('cinema_id');
+            $table->string('city');
             $table->string('location_id');
             $table->string('name');
             $table->string('coord_latitude')->nullable();

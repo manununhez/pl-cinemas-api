@@ -26,6 +26,10 @@ class BackupController extends BaseController
     const KINO_MORANOW = "Kino Muranow";
     const KINO_MORANOW_BASE_URL = "https://kinomuranow.pl/";
 
+    const DAYS_IN_ADVANCE = 15;
+    const DAYS_START_FROM_TODAY = 0;
+    const DAYS_START_FROM_TOMORROW = 1;
+
     public function backupData(){
         $successMultikino = $this->_multikino();
         
@@ -43,10 +47,19 @@ class BackupController extends BaseController
     function _multikino(){
     
         $cinema = Cinema::firstWhere(Cinema::NAME, '=', self::MULTIKINO);
-        $date = new DateTime();
-        $date->add(new DateInterval('P1D'));//('P30D'));
-        $date = $date->format('d-m-Y');//date("d-m-Y");//now
-        
+
+        for ($x = self::DAYS_START_FROM_TODAY; $x <= self::DAYS_IN_ADVANCE; $x++) {
+            $d = new DateTime();
+            $d->add(new DateInterval('P'.$x.'D'));//('P30D'));
+            $dateSearch = $d->format('d-m-Y');//date("d-m-Y");//now
+            $date = $d->format('Y-m-d');
+            $this->getMoviesFromMultikino($cinema, $dateSearch, $date);
+        }
+
+        return true;
+    }
+
+    function getMoviesFromMultikino($cinema, $dateSearch, $date){
         $responseCinemas = $this->getMultikinoCinemasURL();
         foreach ($responseCinemas["venues"] as $keyC => $itemC) {
             foreach ($itemC["cinemas"] as $keyD => $itemD) {
@@ -67,40 +80,55 @@ class BackupController extends BaseController
                 }
 
                 //GET movies from the selected cinema location
-                $responseMovies = $this->getMultikinoMoviesURL($cinemaLocation->location_id, $date);
+                $responseMovies = $this->getMultikinoMoviesURL($cinemaLocation->location_id, $dateSearch);
                 foreach ($responseMovies["WhatsOnAlphabeticFilms"] as $key => $item) {
 
-                    $durationFromFilmParams = collect($item['FilmParams']);
-                    $durationFromFilmParams = $durationFromFilmParams->pluck('Title');
+                    $filmParams = collect($item['FilmParams'])->pluck('Title');
+                    $durationFromFilmParams = $filmParams->pop();
+
+                    $classificationFromFilmParams = $filmParams->filter(function ($value, $key) {
+                                                                    return (strpos($value, "Od lat") === false);
+                                                                })->reduce(function ($carry, $item) {
+                                                                    return $carry."|".$item;
+                                                                }, "");
 
                     $linkCinemaMoviePage = self::MULTIKINO_BASE_URL.$item['FilmUrl'];
                     
                     $movie = new Movie;
                     $movie->title = $this->isNotNull($item['Title']);
                     $movie->description = $this->isNotNull($item['ShortSynopsis']);//<-----
-                    $movie->duration = (strpos($durationFromFilmParams->last(), "minut") !== false) ? explode(" ",$durationFromFilmParams->last())[0] : 0;
-                    $movie->classification = ($item['CertificateAge'] !== "") ? $item['CertificateAge']."+" : $item['CertificateAge'];//<-----
+                    $movie->duration = (strpos($durationFromFilmParams, "minut") !== false) ? explode(" ",$durationFromFilmParams)[0] : 0; //extract movie duration value
+                    $movie->classification = $classificationFromFilmParams;//($item['CertificateAge'] !== "") ? $item['CertificateAge']."+" : $item['CertificateAge'];//<-----
                     $movie->release_year = "" ;
                     $movie->poster_url = $this->isNotNull($item['Poster']);
                     $movie->trailer_url = $this->isNotNull($item['TrailerUrl']);
 
-                    $this->_insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $movie);
+                    $this->_insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $movie, $date);
 
                     // $language = $this->_getLanguageFromMultikino($item['WhatsOnAlphabeticCinemas'][0]) 
                 }
             }   
         }
-        return true;
     }
 
     function _cinemacity(){
-        $date = new DateTime();
-        $date->add(new DateInterval('P1D'));//('P30D'));
-        $date = $date->format('Y-m-d');//date("Y-m-d");
-        $language = "pl_PL";
 
         $cinema = Cinema::firstWhere(Cinema::NAME, '=', self::CINEMACITY);
+        $language = "pl_PL";
+
+        for ($x = self::DAYS_START_FROM_TODAY; $x <= self::DAYS_IN_ADVANCE; $x++) {
+            $date = new DateTime();
+            $date->add(new DateInterval('P'.$x.'D'));//('P30D'));
+            $date = $date->format('Y-m-d');//date("d-m-Y");//now
+            $this->getMoviesFromCinemaCity($cinema, $date, $language);
+        }
         
+        
+        
+        return true;
+    }
+
+    function getMoviesFromCinemaCity($cinema, $date, $language){
         $responseCinemas = $this->getCinemaCityCinemasURL($date, $language);
         foreach ($responseCinemas["body"]["cinemas"] as $keyC => $itemC) {
             //CREATE CINEMA LOCATIONS
@@ -123,33 +151,53 @@ class BackupController extends BaseController
             //GET movies from the selected cinema location
             $responseMovies = $this->getCinemaCityMoviesURL($cinemaLocation->location_id, $date, $language);
             foreach ($responseMovies["body"]["films"] as $key => $item) {
+                // plus / na / bez-ograniczen --->Age restriction
+                // dubbed, subbed, original-lang,first-subbed-lang ---> languages 
+                $classification = "";
+                foreach ($item['attributeIds'] as &$attr) {
+                    if((strpos($attr, "lang") === false) && (strpos($attr, "sub") === false) && (strpos($attr, "dub") === false) &&  (strpos($attr, "2d") === false) && (strpos($attr, "3d") === false)
+                    && (strpos($attr, "na") === false) && (strpos($attr, "plus") === false) && (strpos($attr, "ograniczen") === false)){
+                        $classification = $classification."|".$attr; //we saved only attributes refering to movie categories
+                    }
+                }
+
+
                 $linkCinemaMoviePage = $item['link'];
 
                 $movie = new Movie;
                 $movie->title = $this->isNotNull($item['name']);
                 $movie->description = "";
                 $movie->duration = ($item['length'] !== "") ? intval($item['length']) : 0;//<-----
-                $movie->classification = "";
+                $movie->classification = $classification;
                 $movie->release_year = $this->isNotNull($item['releaseYear']); //<-----
                 $movie->poster_url = $this->isNotNull($item['posterLink']);
                 $movie->trailer_url = $this->isNotNull($item['videoLink']);
 
-                $this->_insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $movie);
+                $this->_insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $movie, $date);
 
                 // $language = $item['attributeIds']
             }
         }
-        return true;
     }
 
     function _kinoMoranow(){
-        $date = new DateTime();
-        $date->add(new DateInterval('P1D'));//('P30D'));
-        $date = $date->format('Y-m-d');//date("Y-m-d");
+
+        $cinema = Cinema::firstWhere(Cinema::NAME, '=', self::KINO_MORANOW);
+
+        for ($x = self::DAYS_START_FROM_TODAY; $x <= self::DAYS_IN_ADVANCE; $x++) {
+            $date = new DateTime();
+            $date->add(new DateInterval('P'.$x.'D'));//('P30D'));
+            $date = $date->format('Y-m-d');//date("d-m-Y");//now
+            $this->getMoviesFromKinoMoranow($cinema, $date);
+        }
+
+        return true;
+    }
+
+    function getMoviesFromKinoMoranow($cinema, $date){
         $client = new Client();
 
         $crawler = $client->request('GET', $this->getKinoMoranowMoviesURL($date));
-        $cinema = Cinema::firstWhere(Cinema::NAME, '=', self::KINO_MORANOW);
 
         $cinemaLocationKinoMuranow = 156;
         $cinemaLocationName = "Warszawa";
@@ -172,7 +220,7 @@ class BackupController extends BaseController
 
         $movie = $crawler
             ->filter("div.rep-film-desc-wrapper")
-            ->each(function ($node) use ($cinemaLocation, $cinema, $client) {
+            ->each(function ($node) use ($cinemaLocation, $cinema, $client, $date) {
                 $linkCinemaMoviePage = self::KINO_MORANOW_BASE_URL.$node->filter("div.rep-film-desc-mobile a")->attr('href');
                 
                 //----- Second crawling ------
@@ -239,13 +287,11 @@ class BackupController extends BaseController
                 }
 
                 // $this->_insertMovie($cinema, $linkCinemaMoviePage, $movie);
-                $this->_insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $movie);
+                $this->_insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $movie, $date);
         });
-
-        return true;
     }
 
-    function _insertMovie($cinemaId, $locationId, $linkCinemaMoviePage, Movie $movieToInsert){
+    function _insertMovie($cinemaId, $locationId, $linkCinemaMoviePage, Movie $movieToInsert, $date){
         $movie = Movie::firstWhere(Movie::TITLE, '=', $movieToInsert->title);
 
         if(!$movie){ //if the movie does not exist           
@@ -256,6 +302,7 @@ class BackupController extends BaseController
                     MoviesInCinema::MOVIE_ID => $movieToInsert->id,
                     MoviesInCinema::CINEMA_ID => $cinemaId,
                     MoviesInCinema::LOCATION_ID => $locationId,
+                    MoviesInCinema::DAY_TITLE => $date,
                     MoviesInCinema::CINEMA_MOVIE_URL => $linkCinemaMoviePage
                 ]);
                 // echo($moviesInCinema);
@@ -308,6 +355,7 @@ class BackupController extends BaseController
             $moviesInCinema = MoviesInCinema::where(MoviesInCinema::MOVIE_ID,"=", $movie->id)
                                             ->where(MoviesInCinema::CINEMA_ID,"=", $cinemaId)
                                             ->where(MoviesInCinema::LOCATION_ID,"=", $locationId)
+                                            ->where(MoviesInCinema::DAY_TITLE,"=", $date)
                                             ->first();
         
             if(!$moviesInCinema){   //if the cinema if not associated with the movie, we create it
@@ -315,6 +363,7 @@ class BackupController extends BaseController
                     MoviesInCinema::MOVIE_ID => $movie->id,
                     MoviesInCinema::CINEMA_ID => $cinemaId,
                     MoviesInCinema::LOCATION_ID => $locationId,
+                    MoviesInCinema::DAY_TITLE => $date,
                     MoviesInCinema::CINEMA_MOVIE_URL => $linkCinemaMoviePage
                 ]);
             }

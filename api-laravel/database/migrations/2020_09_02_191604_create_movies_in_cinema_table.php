@@ -19,9 +19,10 @@ class CreateMoviesInCinemaTable extends Migration
             $table->bigInteger('cinema_id')->unsigned();
             $table->bigInteger('location_id')->unsigned();
             $table->string('cinema_movie_url');
+            $table->string('date_title');
             $table->timestamps();
 
-            $table->unique(['movie_id', 'cinema_id', 'location_id'], 'un_movies_cinema');
+            $table->unique(['movie_id', 'cinema_id', 'location_id', 'date_title'], 'un_movies_cinema');
 
             $table->foreign('movie_id')->references('id')->on('movies')->onDelete('cascade');
             $table->foreign('cinema_id')->references('id')->on('cinemas')->onDelete('cascade');
