@@ -25,8 +25,8 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 Route::get('backup', 'BackupController@backupData');
 Route::get('dates', function (Request $request) {
     $d = collect();
-    for ($x = 0; $x <= BackupController::DAYS_IN_ADVANCE; $x++) {
-        $date = new DateTime();
+    for ($x = BackupController::DAYS_START_FROM_TODAY; $x <= BackupController::DAYS_IN_ADVANCE; $x++) {
+        $date = new DateTime(BackupController::TIMEZONE);
         $date->add(new DateInterval('P'.$x.'D'));//('P30D'));
         $date = $date->format('Y-m-d');//date("d-m-Y");//now
 

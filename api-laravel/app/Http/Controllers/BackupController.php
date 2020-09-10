@@ -27,6 +27,7 @@ class BackupController extends BaseController
     const KINO_MORANOW_BASE_URL = "https://kinomuranow.pl/";
 
     const DAYS_IN_ADVANCE = 10;
+    const TIMEZONE = "Europe/Warsaw";
     const DAYS_START_FROM_TODAY = 0;
     const DAYS_START_FROM_TOMORROW = 1;
 
@@ -49,7 +50,7 @@ class BackupController extends BaseController
         $cinema = Cinema::firstWhere(Cinema::NAME, '=', self::MULTIKINO);
 
         for ($x = self::DAYS_START_FROM_TODAY; $x <= self::DAYS_IN_ADVANCE; $x++) {
-            $d = new DateTime();
+            $d = new DateTime(self::TIMEZONE);
             $d->add(new DateInterval('P'.$x.'D'));//('P30D'));
             $dateSearch = $d->format('d-m-Y');//date("d-m-Y");//now
             $date = $d->format('Y-m-d');
@@ -117,7 +118,7 @@ class BackupController extends BaseController
         $language = "pl_PL";
 
         for ($x = self::DAYS_START_FROM_TODAY; $x <= self::DAYS_IN_ADVANCE; $x++) {
-            $date = new DateTime();
+            $date = new DateTime(self::TIMEZONE);
             $date->add(new DateInterval('P'.$x.'D'));//('P30D'));
             $date = $date->format('Y-m-d');//date("d-m-Y");//now
             $this->getMoviesFromCinemaCity($cinema, $date, $language);
@@ -189,7 +190,7 @@ class BackupController extends BaseController
         $cinema = Cinema::firstWhere(Cinema::NAME, '=', self::KINO_MORANOW);
 
         for ($x = self::DAYS_START_FROM_TODAY; $x <= self::DAYS_IN_ADVANCE; $x++) {
-            $date = new DateTime();
+            $date = new DateTime(self::TIMEZONE);
             $date->add(new DateInterval('P'.$x.'D'));//('P30D'));
             $date = $date->format('Y-m-d');//date("d-m-Y");//now
             $this->getMoviesFromKinoMoranow($cinema, $date);
