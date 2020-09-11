@@ -87,19 +87,21 @@ class BackupController extends BaseController
                     $filmParams = collect($item['FilmParams'])->pluck('Title');
                     $durationFromFilmParams = $filmParams->pop();
 
-                    $classificationFromFilmParams = $filmParams->filter(function ($value, $key) {
+                    $genreFromFilmParams = $filmParams->filter(function ($value, $key) {
                                                                     return (strpos($value, "Od lat") === false);
                                                                 })->reduce(function ($carry, $item) {
                                                                     return $carry."|".$item;
                                                                 }, "");
 
                     $linkCinemaMoviePage = self::MULTIKINO_BASE_URL.$item['FilmUrl'];
-                    
+
                     $movie = new Movie;
                     $movie->title = $this->isNotNull($item['Title']);
                     $movie->description = $this->isNotNull($item['ShortSynopsis']);//<-----
                     $movie->duration = (strpos($durationFromFilmParams, "minut") !== false) ? explode(" ",$durationFromFilmParams)[0] : 0; //extract movie duration value
-                    $movie->classification = $classificationFromFilmParams;//($item['CertificateAge'] !== "") ? $item['CertificateAge']."+" : $item['CertificateAge'];//<-----
+                    $movie->original_lang = "";
+                    $movie->genre = $genreFromFilmParams;
+                    $movie->classification = ($item['CertificateAge'] !== "") ? $item['CertificateAge']."+" : $item['CertificateAge'];//<-----
                     $movie->release_year = "" ;
                     $movie->poster_url = $this->isNotNull($item['Poster']);
                     $movie->trailer_url = $this->isNotNull($item['TrailerUrl']);
@@ -157,11 +159,21 @@ class BackupController extends BaseController
             foreach ($responseMovies["body"]["films"] as $key => $item) {
                 // plus / na / bez-ograniczen --->Age restriction
                 // dubbed, subbed, original-lang,first-subbed-lang ---> languages 
+                $genre = "";
+                $original_language = "";
                 $classification = "";
                 foreach ($item['attributeIds'] as &$attr) {
                     if((strpos($attr, "lang") === false) && (strpos($attr, "sub") === false) && (strpos($attr, "dub") === false) &&  (strpos($attr, "2d") === false) && (strpos($attr, "3d") === false)
                     && (strpos($attr, "na") === false) && (strpos($attr, "plus") === false) && (strpos($attr, "ograniczen") === false)){
-                        $classification = $classification."|".$attr; //we saved only attributes refering to movie categories
+                        $genre = $genre."|".$attr; //we saved only attributes refering to movie categories
+                    }
+
+                    if((strpos($attr, "original-lang") !== false) || (strpos($attr, "dubbed-lang") !== false)){
+                        $original_language = $attr;
+                    }
+
+                    if((strpos($attr, "na") !== false) && (strpos($attr, "plus") !== false) && (strpos($attr, "ograniczen") !== false)){
+                        $classification = $attr;
                     }
                 }
 
@@ -173,6 +185,8 @@ class BackupController extends BaseController
                 $movie->title = $this->isNotNull($item['name']);
                 $movie->description = "";
                 $movie->duration = ($item['length'] !== "") ? intval($item['length']) : 0;//<-----
+                $movie->original_lang = $original_language;
+                $movie->genre = $genre;
                 $movie->classification = $classification;
                 $movie->release_year = $this->isNotNull($item['releaseYear']); //<-----
                 $movie->poster_url = $this->isNotNull($item['posterLink']);
@@ -280,13 +294,17 @@ class BackupController extends BaseController
 
                 $movie->poster_url = $this->isNodeIsNotEmptyAttr($node->filter("div.rep-film-show-hover-wrapper img"), 'src');
 
+                $movie->poster_url = str_replace("cycle_2x1_hover","cycle_1x1", $movie->poster_url); //adjust poster size
+
                 foreach ($movieDesc as $key => $item) {
                     $movie->description = $this->isNotNull($item['description']);
                     $movie->trailer_url = $this->isNotNull($item['trailer_url']);
                 }
 
                 foreach($movieDetails as $key => $item) {
-                    $movie->classification = $this->isNotNull($item['category']);
+                    $movie->original_lang = $this->isNotNull($item['language']);
+                    $movie->genre = $this->isNotNull($item['category']);
+                    $movie->classification = "";
                     $movie->release_year = $this->isNotNull($item['production_date']);
                     $movie->duration = isset($item['duration']) ? intval($item['duration']) : 0;
                 }
@@ -329,6 +347,16 @@ class BackupController extends BaseController
 
             if($movie->duration === 0 && $movieToInsert->duration > 0){
                 $movie->duration = $movieToInsert->duration;
+                $updateValues = true;
+            }
+
+            if($movie->original_lang === "" && $movieToInsert->original_lang !== ""){
+                $movie->original_lang = $movieToInsert->original_lang;
+                $updateValues = true;
+            }
+
+            if($movie->genre === "" && $movieToInsert->genre !== ""){
+                $movie->genre = $movieToInsert->genre;
                 $updateValues = true;
             }
 

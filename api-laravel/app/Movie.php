@@ -9,7 +9,9 @@ class Movie extends Model
     const ID = 'id';
     const TITLE = 'title';
     const DESCRIPTION = 'description';
+    const ORIGINAL_LANG = 'original_lang';
     const DURATION = 'duration';
+    const GENRE = 'genre';
     const CLASSIFICATION = 'classification';
     const YEAR = 'release_year';
     const TRAILER = 'trailer_url';
@@ -21,7 +23,7 @@ class Movie extends Model
     // public $incrementing = false;
     
     protected $fillable = [
-        self::TITLE, self::DESCRIPTION, self::DURATION, self::CLASSIFICATION, self::YEAR, self::TRAILER, self::POSTER
+        self::TITLE, self::DESCRIPTION, self::ORIGINAL_LANG, self::DURATION, self::GENRE, self::CLASSIFICATION, self::YEAR, self::TRAILER, self::POSTER
     ];
 
     public function cinemas(){
