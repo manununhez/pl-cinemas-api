@@ -17,6 +17,7 @@ use Goutte\Client;
 //TODO Add backup of movies for the next X days in advance
 class BackupController extends BaseController
 {
+    //TODO retrieve cinemas URL from DB, not from const!
     const MULTIKINO = "Multikino";
     const MULTIKINO_BASE_URL = "https://multikino.pl";
 
@@ -25,6 +26,9 @@ class BackupController extends BaseController
 
     const KINO_MORANOW = "Kino Muranow";
     const KINO_MORANOW_BASE_URL = "https://kinomuranow.pl/";
+
+    const KINOTEKA = "Kinoteka";
+    const KINOTEKA_BASE_URL = "https://kinoteka.pl";
 
     const DAYS_IN_ADVANCE = 10;
     const TIMEZONE = "Europe/Warsaw";
@@ -38,7 +42,10 @@ class BackupController extends BaseController
 
         $successKinoMoranow = $this->_kinoMoranow();
 
-        if($successMultikino && $successCinemacity && $successKinoMoranow)
+        $successKinoteka = $this->_kinoteka();
+
+        // if($successKinoteka)
+        if($successMultikino && $successCinemacity && $successKinoMoranow && $successKinoteka && $successKinoteka)
             return $this->sendResponse("", 'Backup completed successfully.');
         else
             return $this->sendError('Backup could not be completed.', 500);
@@ -125,9 +132,7 @@ class BackupController extends BaseController
             $date = $date->format('Y-m-d');//date("d-m-Y");//now
             $this->getMoviesFromCinemaCity($cinema, $date, $language);
         }
-        
-        
-        
+               
         return true;
     }
 
@@ -314,6 +319,100 @@ class BackupController extends BaseController
         });
     }
 
+    function _kinoteka(){
+        $cinema = Cinema::firstWhere(Cinema::NAME, '=', self::KINOTEKA);
+
+        for ($x = self::DAYS_START_FROM_TODAY;  $x <= self::DAYS_IN_ADVANCE; $x++) {
+            $date = new DateTime(self::TIMEZONE);
+            $date->add(new DateInterval('P'.$x.'D'));//('P30D'));
+            $date = $date->format('Y-m-d');//date("d-m-Y");//now
+            $this->getMoviesFromKinoteka($cinema, $date);
+        }
+
+        return true;
+    }
+
+    function getMoviesFromKinoteka($cinema, $date){
+        $client = new Client();
+
+        $crawler = $client->request('GET', $this->getKinotekaMoviesURL($date));
+
+        
+        $cinemaLocationKinoteka = 35;
+        $cinemaLocationName = "Warszawa";
+        $cityName = "Warszawa";
+        //CREATE CINEMA LOCATIONS
+        $cinemaLocation = CinemaLocation::where(CinemaLocation::LOCATION_ID, '=', $cinemaLocationKinoteka)
+                                        ->where(CinemaLocation::CINEMA_ID, '=', $cinema->id)
+                                        ->first();
+        //if locations does not exist, we'll create it
+        if(is_null($cinemaLocation)){ 
+            //create locations of the cinema
+            $cinemaLocation = CinemaLocation::create([
+                CinemaLocation::LOCATION_ID => $cinemaLocationKinoteka,
+                CinemaLocation::NAME => $cinemaLocationName,
+                CinemaLocation::CINEMA_ID => $cinema->id,
+                CinemaLocation::CITY => $cityName,
+
+            ]);
+        }
+
+        $movie = $crawler
+                ->filter("div.listItem")
+                ->each(function ($node) use ($cinemaLocation, $cinema, $client, $date) {
+                    $linkCinemaMoviePage = self::KINOTEKA_BASE_URL.$node->filter("div.m a")->attr('href');
+                    // echo($linkCinemaMoviePage."\n");
+                    // return echo($node);
+
+                    //----- Second crawling ------
+                    $secondCrawler = $client->request('GET', $linkCinemaMoviePage);
+                    $movieDesc = $secondCrawler
+                                ->filter("div.text")
+                                ->each(function ($node2) use ($cinemaLocation, $cinema, $date, $linkCinemaMoviePage) {                                    
+                                    $movieDetails = $node2->filter("div.movieDetails div.details p")//p.p500
+                                                ->each(function ($node3) {
+                                                    return $this->isNodeIsNotEmptyText($node3);
+                                                });
+                                    // echo($this->isNodeIsNotEmptyText($node2->filter("div.movieDetails div.details p.head1"))."\n".json_encode(sizeof($movieDetails))." ".$date."\n\n");                                    
+                                    
+                                    // echo(json_encode($movieDetails)."\n\n\n");
+                                    $duration = 0;
+                                    $original_lang = "";
+                                    $release_year = "";
+                                    $genre = "";
+                                    for ($x = 0; $x < sizeof($movieDetails); $x++) {
+                                        if($movieDetails[$x] === "Czas trwania:"){ //duration
+                                            $duration = intval(explode(" ", $movieDetails[$x + 1])[0]);
+                                        }
+                                        if($movieDetails[$x] === "Wersja językowa:"){//original lang
+                                            $original_lang = $movieDetails[$x + 1];
+                                        }
+                                        if($movieDetails[$x] === "Rok produkcji:"){//release_year
+                                            $release_year = $movieDetails[$x + 1];
+                                        }
+                                        if($movieDetails[$x] === "Gatunek:"){//genre
+                                            $genre = $movieDetails[$x + 1];
+                                        }
+                                    
+                                    }
+                                    $movie = new Movie;
+                                    $movie->title = $this->isNodeIsNotEmptyText($node2->filter("div.movieDetails div.details p.head1"));
+                                    $movie->description = $this->isNodeIsNotEmptyText($node2->filter("div.movieDesc"));
+                                    $movie->duration = $duration; //extract duration int value
+                                    $movie->original_lang = $original_lang;
+                                    $movie->genre = $genre;
+                                    $movie->classification = $this->isNodeIsNotEmptyAttr($node2->filter("div.icons span.icon"), 'title');
+                                    $movie->release_year = $release_year;
+                                    $movie->poster_url = self::KINOTEKA_BASE_URL.$this->isNodeIsNotEmptyAttr($node2->filter("div.movieDetails a.brochure"),'href');
+                                    $movie->trailer_url = "";
+
+                                    $this->_insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $movie, $date);
+                                
+                                });
+
+                });
+    }
+
     function _insertMovie($cinemaId, $locationId, $linkCinemaMoviePage, Movie $movieToInsert, $date){
         $movie = Movie::firstWhere(Movie::TITLE, '=', $movieToInsert->title);
 
@@ -417,19 +516,24 @@ class BackupController extends BaseController
     }
 
     function getMultikinoCinemasURL(){
-        return Http::get("https://multikino.pl/data/locations/");
+        return Http::get(self::MULTIKINO_BASE_URL."/data/locations/");
     }
 
     function getCinemaCityMoviesURL($cinemaId, $date, $language){
-        return Http::get("https://www.cinema-city.pl/pl/data-api-service/v1/quickbook/10103/film-events/in-cinema/".$cinemaId."/at-date/".$date."?attr=&lang=".$language);
+        return Http::get(self::CINEMACITY_BASE_URL."pl/data-api-service/v1/quickbook/10103/film-events/in-cinema/".$cinemaId."/at-date/".$date."?attr=&lang=".$language);
     }
 
     function getCinemaCityCinemasURL($date, $language){
-        return Http::get("https://www.cinema-city.pl/pl/data-api-service/v1/quickbook/10103/cinemas/with-event/until/".$date."?attr=&lang=".$language);
+        return Http::get(self::CINEMACITY_BASE_URL."pl/data-api-service/v1/quickbook/10103/cinemas/with-event/until/".$date."?attr=&lang=".$language);
     }
 
     function getKinoMoranowMoviesURL($date){
-        return 'https://kinomuranow.pl/repertuar?month='.$date;
+        return self::KINO_MORANOW_BASE_URL."repertuar?month=".$date;
+    }
+
+    function getKinotekaMoviesURL($date){
+        //https://kinoteka.pl/repertuar/date,2020-09-12
+        return self::KINOTEKA_BASE_URL."/repertuar/date,".$date;
     }
 
     function isNotNull($item){
