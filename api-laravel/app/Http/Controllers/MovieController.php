@@ -97,7 +97,8 @@ class MovieController extends BaseController
                     CinemaLocation::COORD_LATITUDE => $locationTmp[CinemaLocation::COORD_LATITUDE],
                     CinemaLocation::COORD_LONGITUDE => $locationTmp[CinemaLocation::COORD_LONGITUDE],
                     Cinema::LOGO => $cinemaTmp[Cinema::LOGO],
-                    MoviesInCinema::CINEMA_MOVIE_URL => $location[MoviesInCinema::CINEMA_MOVIE_URL]
+                    MoviesInCinema::CINEMA_MOVIE_URL => $location[MoviesInCinema::CINEMA_MOVIE_URL],
+                    MoviesInCinema::LANGUAGE => $location[MoviesInCinema::LANGUAGE]
                 ]);
             }
 

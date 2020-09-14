@@ -12,11 +12,12 @@ class MoviesInCinema extends Model
     const CINEMA_ID = "cinema_id";
     const CINEMA_MOVIE_URL = "cinema_movie_url";
     const DAY_TITLE = "date_title";
+    const LANGUAGE = "language";
 
     protected $table = 'movies_in_cinema';
 
     protected $fillable = [ 
-        self::MOVIE_ID, self::CINEMA_ID, self::LOCATION_ID, self::CINEMA_MOVIE_URL, self::DAY_TITLE
+        self::MOVIE_ID, self::CINEMA_ID, self::LOCATION_ID, self::CINEMA_MOVIE_URL, self::DAY_TITLE, self::LANGUAGE
     ];
 
     public function movies(){
