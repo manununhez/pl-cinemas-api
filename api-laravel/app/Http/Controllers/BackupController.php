@@ -68,7 +68,7 @@ class BackupController extends BaseController
         $successKinoteka = $this->_kinoteka();
 
         // if($successKinoteka)
-        if($successMultikino && $successCinemacity && $successKinoMoranow && $successKinoteka && $successKinoteka)
+        if($successMultikino && $successCinemacity && $successKinoMoranow && $successKinoteka)
             return $this->sendResponse(self::EMPTY_TEXT, 'Backup completed successfully.');
         else
             return $this->sendError('Backup could not be completed.', 500);
@@ -431,7 +431,8 @@ class BackupController extends BaseController
                                         }
                                     }
 
-                                    $classification = explode(" ", $this->isNodeIsNotEmptyAttr($node2->filter("div.icons span.icon"), 'title'))[1]; //Extract number from text E.g. od 15 lat
+                                    $classification = $this->isNodeIsNotEmptyAttr($node2->filter("div.icons span.icon"), 'title');
+                                    $classification = (strpos($classification, "lat") !== false) ? explode(" ", $classification)[1] : self::EMPTY_TEXT; //Extract number from text E.g. od 15 lat
 
                                     $movie = new Movie;
                                     $movie->title = $this->isNodeIsNotEmptyText($node2->filter("div.movieDetails div.details p.head1"));
