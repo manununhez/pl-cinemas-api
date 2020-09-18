@@ -21,14 +21,14 @@ class MovieController extends BaseController
 
         foreach($movies as $movie){
             $cinemas = MoviesInCinema::
-                            where(MoviesInCinema::MOVIE_ID, "=", $movie->id)
+                            where(MoviesInCinema::MOVIE_ID, $movie->id)
                             // ->select(MoviesInCinema::CINEMA_ID, MoviesInCinema::CINEMA_MOVIE_URL)
                             ->get();
             $resultCinemas = collect();
             
             foreach($cinemas as $cinema){
                 
-                $locationTmp = CinemaLocation::where(MoviesInCinema::ID, "=", $cinema->location_id)
+                $locationTmp = CinemaLocation::where(MoviesInCinema::ID, $cinema->location_id)
                                             ->first();
 
                 
@@ -58,35 +58,73 @@ class MovieController extends BaseController
 
 
     public function getMoviesByLocation(Request $request){
-        
-        $locationSearchTerm = isset($request->city) ? $request->city : "Warszawa";
-        $dateSearchTerm = isset($request->date) ? $request->date : date("Y-m-d");//today
+        $input = $request->all();
 
-        $locationIDTmp = CinemaLocation::where(CinemaLocation::CITY, "LIKE", $locationSearchTerm)
-                                        ->pluck(CinemaLocation::ID);
+        $locationSearchTerm = isset($input['city']) ? $input['city'] : "Warszawa";//isset($request->city) ? $request->city : "Warszawa";
+
+        $languageSearchTerm = $input['language'];//isset($input['language']) ? $input['language'] : "All";//isset($request->language) ? explode(",",$request->language) : "All";
+
+        $cinemasSearchTerm = $input['cinema'];//isset($input['cinema']) ? $input['cinema'] : "All";//isset($request->getContent()->cinema) ? explode(",",$request->getContent()->cinema) : "All";
+
+        $dateSearchTerm = isset($input['date']) ? $input['date'] : date("Y-m-d");//today //isset($request->date) ? $request->date : date("Y-m-d");//today
+
+        // // echo(json_encode($cinemasSearchTerm));
+
+        // echo($dateSearchTerm);
+        // echo(gettype($cinemasSearchTerm));
+        // echo(gettype($languageSearchTerm));
+        // echo($locationSearchTerm);
+
+        if(sizeof($cinemasSearchTerm) > 0){
+            $cinemas = Cinema::where(function($where) use($cinemasSearchTerm) {
+                                    foreach($cinemasSearchTerm as $count => $text) {
+                                        if ($count === 0) {                        
+                                            $where->where(Cinema::NAME, 'LIKE', "%{$text}%");
+                                        } else {
+                                            $where->orWhere(Cinema::NAME, 'LIKE', "%{$text}%");
+                                        }
+                                    }
+                                })->pluck(Cinema::ID);
+
+            $locationIDTmp = CinemaLocation::whereIn(CinemaLocation::CINEMA_ID, $cinemas)
+                                            ->where(CinemaLocation::CITY, "LIKE", $locationSearchTerm)
+                                            ->pluck(CinemaLocation::ID);           
+        } else {
+            $locationIDTmp = CinemaLocation::where(CinemaLocation::CITY, "LIKE", $locationSearchTerm)
+                                            ->pluck(CinemaLocation::ID);
+        }
         
         $movieCinemaTmp = MoviesInCinema::whereIN(MoviesInCinema::LOCATION_ID, $locationIDTmp)
-                                        ->where(MoviesInCinema::DAY_TITLE, "=", $dateSearchTerm)
-                                        ->get();
+                                            ->where(MoviesInCinema::DAY_TITLE, $dateSearchTerm)
+                                            ->get();
         
         $moviesTmp = $movieCinemaTmp->pluck(MoviesInCinema::MOVIE_ID)->unique();
 
-        $moviesIDOrdered = Movie::whereIN(Movie::ID, $moviesTmp)
+        if(sizeof($languageSearchTerm) > 0){
+            $moviesIDOrdered = Movie::whereIN(Movie::ID, $moviesTmp)
+                                ->whereIN(Movie::ORIGINAL_LANG, $languageSearchTerm)
                                 ->orderBy(Movie::TITLE)
                                 ->pluck(Movie::ID); //Order asc by Title
+        } else {
+            $moviesIDOrdered = Movie::whereIN(Movie::ID, $moviesTmp)
+                                ->orderBy(Movie::TITLE)
+                                ->pluck(Movie::ID); //Order asc by Title
+        }
+
+        
         
         $resultMoviesID = collect();
         foreach($moviesIDOrdered as $key => $value){
-            $movie = Movie::where(Movie::ID, "=", $value)->first();
+            $movie = Movie::where(Movie::ID, $value)->first();
             
-            $locations = MoviesInCinema::where(MoviesInCinema::MOVIE_ID, "=", $movie->id)
+            $locations = MoviesInCinema::where(MoviesInCinema::MOVIE_ID, $movie->id)
                                         ->whereIn(MoviesInCinema::LOCATION_ID, $locationIDTmp)
-                                        ->where(MoviesInCinema::DAY_TITLE, "=", $dateSearchTerm)
+                                        ->where(MoviesInCinema::DAY_TITLE, $dateSearchTerm)
                                         ->get();
             
             $resultCinemas = collect();
             foreach($locations as $location){
-                $locationTmp = CinemaLocation::where(MoviesInCinema::ID, "=", $location->location_id)
+                $locationTmp = CinemaLocation::where(MoviesInCinema::ID, $location->location_id)
                                                 ->first();
                
                 $cinemaTmp = Cinema::find($location->cinema_id);

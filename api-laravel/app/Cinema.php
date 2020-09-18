@@ -19,4 +19,8 @@ class Cinema extends Model
     protected $fillable = [
         self::NAME, self::WEBSITE, self::LOGO
     ];
+
+    function getCinemas(){
+        return $this->orderBy(self::NAME)->get([self::NAME])->pluck(self::NAME);
+    }
 }

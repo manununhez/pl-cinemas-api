@@ -23,9 +23,9 @@ class CinemaLocation extends Model
         self::NAME, self::CINEMA_ID, self::CITY, self::LOCATION_ID, self::COORD_LATITUDE, self::COORD_LONGITUDE
     ];
 
-    function getCinemas(){
+    function getCinemaCities(){
         // return $this->distinct()->orderBy(self::CITY)->groupBy(self::CITY, self::LOCATION_ID)->get([self::CITY, self::LOCATION_ID]);
 
-        return $this->distinct()->orderBy(self::CITY)->groupBy(self::CITY)->get([self::CITY]);
+        return $this->distinct()->orderBy(self::CITY)->groupBy(self::CITY)->get(self::CITY)->pluck(self::CITY);
     }
 }

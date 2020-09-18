@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+use App\Cinema;
 use App\CinemaLocation;
 
 use App\Http\Controllers\BackupController;
@@ -48,13 +49,40 @@ Route::get('locations', function (Request $request) {
     $city = new CinemaLocation();
     $result = [
         "success" => true,
-        "data" => $city->getCinemas(),
+        "data" => $city->getCinemaCities(),
         "message" => "Cities succesfully delivered."
     ];
     return $result;
 });
 
-Route::get('movies', 'MovieController@getMoviesByLocation');
+Route::get('attributes', function (Request $request) {
+    $d = collect();
+    for ($x = BackupController::DAYS_START_FROM_TODAY; $x <= BackupController::DAYS_IN_ADVANCE; $x++) {
+        $date = new DateTime(BackupController::TIMEZONE);
+        $date->add(new DateInterval('P'.$x.'D'));//('P30D'));
+        $date = $date->format('Y-m-d');//date("d-m-Y");//now
+
+        $d->push($date);
+    }
+
+    $city = new CinemaLocation();
+    $cinema = new Cinema();
+    $result = [
+        "success" => true,
+        "data" => [
+            "cinemas" => $cinema->getCinemas(),
+            "cities" => $city->getCinemaCities(),
+            "days" => $d,
+            "languages" => [
+                "angielski"
+            ]
+        ],
+        "message" => "Cities succesfully delivered."
+    ];
+    return $result;
+});
+
+Route::post('movies/search', 'MovieController@getMoviesByLocation');
 // Route::get('movies', 'MovieController@index');
 Route::post('movies', 'MovieController@store');
 Route::delete('movies/{id}','MovieController@delete');
