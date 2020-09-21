@@ -65,10 +65,10 @@ class BackupController extends BaseController
 
         $successKinoMoranow = $this->_kinoMoranow();
 
-        $successKinoteka = $this->_kinoteka();
+        // $successKinoteka = $this->_kinoteka();
 
         // if($successKinoteka)
-        if($successMultikino && $successCinemacity && $successKinoMoranow && $successKinoteka)
+        if($successMultikino && $successCinemacity && $successKinoMoranow)// && $successKinoteka)
             return $this->sendResponse(self::EMPTY_TEXT, 'Backup completed successfully.');
         else
             return $this->sendError('Backup could not be completed.', 500);
@@ -129,14 +129,16 @@ class BackupController extends BaseController
                     $movie->title = $this->isNotNull($item['Title']);
                     $movie->description = $this->isNotNull($item['ShortSynopsis']);//<-----
                     $movie->duration = (strpos($durationFromFilmParams, "minut") !== false) ? explode(" ",$durationFromFilmParams)[0] : 0; //extract movie duration value
-                    $movie->original_lang = self::EMPTY_TEXT;
+                    
                     $movie->genre = $genreFromFilmParams;
                     $movie->classification = ($item['CertificateAge'] !== self::EMPTY_TEXT) ? $item['CertificateAge']."+" : $item['CertificateAge'];//<-----
                     $movie->release_year = self::EMPTY_TEXT ;
                     $movie->poster_url = $this->isNotNull($item['Poster']);
                     $movie->trailer_url = $this->isNotNull($item['TrailerUrl']);
 
-                    $movie_cinema_language = implode("|",$this->_getLanguageFromMultikino($item['WhatsOnAlphabeticCinemas'][0]));
+                    $multikinoLangs = $this->_getLanguageFromMultikino($item['WhatsOnAlphabeticCinemas'][0]);
+                    $movie_cinema_language = $multikinoLangs["languageDescription"];
+                    $movie->original_lang = $multikinoLangs["original_lang"];
 
                     $this->_insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $movie, $date, $movie_cinema_language);
                 }
@@ -207,19 +209,16 @@ class BackupController extends BaseController
                         (strpos($attr, "dubbed-lang") !== false) || 
                         (strpos($attr, "subbed-lang") !== false)){
                         if((strpos($attr, "original-lang") !== false)){
-                            if((strpos($attr, "original-lang-en") !== false)){
-                                $original_language = self::LANGUAGES_TO_PL['english'];
-                            } else if((strpos($attr, "original-lang-pl") !== false)){ 
-                                $original_language = self::LANGUAGES_TO_PL['polish'];
-                            } else if((strpos($attr, "original-lang-fr-fr") !== false)){ 
-                                $original_language = self::LANGUAGES_TO_PL['french'];
-                                
-                            }else { //other languages like niemiecki 
-                                $original_language = $attr;
-                            }
+                            $original_language = $this->getOriginalLanguageCinemaCity($attr);
+                            $movie_cinema_language = ($movie_cinema_language === self::EMPTY_TEXT) ? $original_language : $original_language."|".$movie_cinema_language;
+                        } else if((strpos($attr, "subbed-lang") !== false)){
+                            $sub = ($attr === "first-subbed-lang-pl") ? "polskie napisy" : $attr;
+                            // $movie_cinema_language = $movie_cinema_language."(".$sub.")";
+                            $movie_cinema_language = ($movie_cinema_language === self::EMPTY_TEXT) ? $sub : $movie_cinema_language."|".$sub;
+                        } else {//"dubbed-lang"
+                            $dubb = ($attr === "dubbed-lang-pl") ? "polski dubbing" : $attr;
+                            $movie_cinema_language = ($movie_cinema_language === self::EMPTY_TEXT) ? $dubb : $movie_cinema_language."|".$dubb;
                         }
-
-                        $movie_cinema_language = $movie_cinema_language."|".$attr;
                     }
 
                     if((strpos($attr, "na") !== false) && 
@@ -246,6 +245,18 @@ class BackupController extends BaseController
 
                 $this->_insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $movie, $date, $movie_cinema_language);
             }
+        }
+    }
+
+    function getOriginalLanguageCinemaCity($attr){
+        if(strpos($attr, "original-lang-en") !== false){ //e.g. original-lang-en-us
+            return self::LANGUAGES_TO_PL['english'];
+        } else if(strpos($attr, "original-lang-pl") !== false){ 
+            return self::LANGUAGES_TO_PL['polish'];
+        } else if(strpos($attr, "original-lang-fr") !== false){ 
+            return self::LANGUAGES_TO_PL['french'];
+        } else {
+            return $attr;
         }
     }
 
@@ -348,13 +359,26 @@ class BackupController extends BaseController
                 }
 
                 foreach($movieDetails as $key => $item) {
-                    $movie->original_lang = substr($this->isNotNull($item['language']), 0, strpos($this->isNotNull($item['language']),'('));  //E.g., extract original lang before parenthesis: hiszpański (napisy polskie i angielskie)
+                    $originalLang = substr($this->isNotNull($item['language']), 0, strpos($this->isNotNull($item['language']),'('));  //E.g., extract original lang before parenthesis: hiszpański (napisy polskie i angielskie)
+                    $movie->original_lang = (strpos($originalLang, "polski dubbing") !== false) ? self::EMPTY_TEXT : $originalLang;
                     $movie->genre = $this->isNotNull($item['category']);
                     $movie->classification = self::EMPTY_TEXT;
                     $movie->release_year = $this->isNotNull($item['production_date']);
                     $movie->duration = isset($item['duration']) ? intval($item['duration']) : 0;
 
-                    $movie_cinema_language = $this->isNotNull($item['language']);
+                    $napisy = substr($this->isNotNull($item['language']), strpos($this->isNotNull($item['language']),'('), strpos($this->isNotNull($item['language']),')'));
+                    if($napisy !== self::EMPTY_TEXT && $originalLang !== self::EMPTY_TEXT){
+                        $movie_cinema_language = $originalLang."|".$napisy;
+                    } else if($napisy !== self::EMPTY_TEXT && $originalLang === self::EMPTY_TEXT){
+                        $movie_cinema_language = $napisy;
+                    } else if($napisy === self::EMPTY_TEXT && $originalLang !== self::EMPTY_TEXT) {
+                        $movie_cinema_language = $originalLang;
+                    } else {
+                        $movie_cinema_language = self::EMPTY_TEXT;
+                    }
+
+                    $movie_cinema_language = str_replace("(","", $movie_cinema_language);
+                    $movie_cinema_language = str_replace(")","", $movie_cinema_language);
                     
                 }
 
@@ -438,13 +462,40 @@ class BackupController extends BaseController
                                     $movie->title = $this->isNodeIsNotEmptyText($node2->filter("div.movieDetails div.details p.head1"));
                                     $movie->description = $this->isNodeIsNotEmptyText($node2->filter("div.movieDesc"));
                                     $movie->duration = $duration; 
-                                    $movie->original_lang = (strpos($movie_cinema_language, "angielsk") !== false) ? self::LANGUAGES_TO_PL['english'] : $movie_cinema_language;//extend this for other languages
                                     $movie->genre = $genre;
                                     $movie->classification = ($classification !== self::EMPTY_TEXT) ? $classification."+" : self::EMPTY_TEXT;
                                     $movie->release_year = $release_year;
                                     $movie->poster_url = self::KINOTEKA_BASE_URL.$this->isNodeIsNotEmptyAttr($node2->filter("div.movieDetails a.brochure"),'href');
                                     $movie->trailer_url = $this->isNodeIsNotEmptyAttr($node2->filter("div.movieTrailerPhoto div.movie iframe"), 'src');
 
+                                    //angielska, polska ->original_lang = "angielskie, polskie"
+                                    //+ angielskie ->original_lang = "napisy angielski"
+                                    //polski dubbing, lektor, bez dialogów ->original_lang = ""
+                                    //ejemplos:
+                                    //angielska | napisy: polskie
+                                    //napisy: polskie + angielskie
+                                    //czeska | napisy: polskie
+                                    //polska | napisy: brak   
+                                    //polski dubbing
+                                    //polska
+                                    $movie->original_lang = self::EMPTY_TEXT;
+                                    if(strpos($movie_cinema_language, "angielsk") !== false){
+                                        if(strpos($movie_cinema_language, "angielska") !== false){
+                                            $movie->original_lang = self::LANGUAGES_TO_PL['english'];                                       
+                                        } else if(strpos($movie_cinema_language, "+ angielskie") !== false){
+                                            $movie->original_lang = "język napisów: angielski";
+                                        }
+                                    } else if(strpos($movie_cinema_language, "polska") !== false){
+                                        $movie->original_lang = self::LANGUAGES_TO_PL['polish'];
+                                    } else if((strpos($movie_cinema_language, "lektor") !== false) || (strpos($movie_cinema_language, "dubbing") !== false)){
+                                        $movie->original_lang = self::EMPTY_TEXT;
+                                    } else if(strpos($movie_cinema_language, "| napisy:") !== false){
+                                        $movie->original_lang = explode("| napisy:", $movie_cinema_language)[0];
+                                    }
+
+                                    // $movie->original_lang = (strpos($movie_cinema_language, "angielsk") !== false) ? self::LANGUAGES_TO_PL['english'] : $movie_cinema_language;//extend this for other languages
+
+                                    $movie_cinema_language = explode("| subtitles", $movie_cinema_language)[0]; //e.g., We remove the english translation (| subt): "napisy: polskie + angielskie | subtitles: polish + english"
                                     $this->_insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $movie, $date, $movie_cinema_language);
                                 });
 
@@ -543,15 +594,25 @@ class BackupController extends BaseController
     }
 
     function _getLanguageFromMultikino($value){
+        $originalLang = self::EMPTY_TEXT;
         $attrs = array();
         foreach ($value["WhatsOnAlphabeticCinemas"] as $key => $item) {   
             foreach ($item["WhatsOnAlphabeticShedules"] as $key2 => $item2) {
                 $tmp = explode(", ", $item2['VersionTitle']);
-                              
-                array_push($attrs, $tmp[0], $tmp[1]);
+                // $tmp[0] === "2D" ---  Obviamos por el momento
+                if($tmp[1] === "Napisy"){
+                    $attr = "polskie napisy";
+                } else if($tmp[1] === "Dubbing"){
+                    $attr = "polskie dubbing";
+                } else if($tmp[1] === "PL"){
+                    $attr = "polskie";
+                    $originalLang = "polskie";
+                }
+                array_push($attrs, $attr);       
+                
             }
         }
-        return array_unique($attrs);
+        return ["original_lang" => $originalLang, "languageDescription" => implode("|", array_unique($attrs))];
     }
 
     function getMultikinoMoviesURL($cinemaId, $date){

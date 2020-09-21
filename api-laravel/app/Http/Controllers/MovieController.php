@@ -102,7 +102,16 @@ class MovieController extends BaseController
 
         if(sizeof($languageSearchTerm) > 0){
             $moviesIDOrdered = Movie::whereIN(Movie::ID, $moviesTmp)
-                                ->whereIN(Movie::ORIGINAL_LANG, $languageSearchTerm)
+                                // ->whereIN(Movie::ORIGINAL_LANG, $languageSearchTerm)
+                                ->where(function($where) use($languageSearchTerm) {
+                                    foreach($languageSearchTerm as $count => $text) {
+                                        if ($count === 0) {                        
+                                            $where->where(Movie::ORIGINAL_LANG, 'LIKE', "%{$text}%");
+                                        } else {
+                                            $where->orWhere(Movie::ORIGINAL_LANG, 'LIKE', "%{$text}%");
+                                        }
+                                    }
+                                })
                                 ->orderBy(Movie::TITLE)
                                 ->pluck(Movie::ID); //Order asc by Title
         } else {
