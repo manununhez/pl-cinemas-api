@@ -47,13 +47,55 @@ class BackupController extends BaseController
     const KINO_MURANOW_DATA = [
         "id" => 156,
         "city" => "Warszawa",
-        "location" => "Warszawa"
+        "location" => "Warszawa",
+        "coord_latitude" => "52.245339",
+        "coord_longitude" => "20.998964"
     ];
 
     const KINOTEKA_DATA = [
         "id" => 35,
         "city" => "Warszawa",
-        "location" => "Warszawa"
+        "location" => "Warszawa",
+        "coord_latitude" => "52.231816",
+        "coord_longitude" => "21.005839"
+    ];
+
+    const MULTIKINO_DATA = [
+        "coordinates" => [
+           "Bydgoszcz" => [53.12703, 17.989472],
+            "Czechowice-Dziedzice" => [49.911823, 18.997382],
+            "Elbląg" => [54.185447, 19.406908],
+            "Gdańsk" => [54.372236, 18.627182],
+            "Jaworzno" => [50.20359, 19.269822], 
+            "Katowice" => [50.259533, 19.017707],
+            "Kielce" => [50.87553, 20.63582],
+            "Koszalin" => [54.177535, 16.200278],
+            "Kraków" => [50.089242, 19.984784],
+            "Lublin" => [51.267412, 22.571349],
+            "Łódź" => [51.75917, 19.460514],
+            "Olsztyn" => [53.754773, 20.485013],
+            "Poznań Malta" => [52.401044, 16.958479],
+            "Poznań Multikino 51" => [52.399293, 16.929253],
+            "Poznań Stary Browar" => [52.402964, 16.924386],
+            "Pruszków" => [52.165146, 20.792661],
+            "Radom" => [51.405484, 21.154285],
+            "Rumia" => [54.56354, 18.389998],
+            "Rybnik" => [50.094443, 18.543343],
+            "Rzeszów" => [50.027718, 22.0134],
+            "Słupsk" => [54.454135, 16.991899],
+            "Sopot" => [54.445271, 18.567722],
+            "Szczecin" => [53.433928, 14.555905],
+            "Tychy" => [50.111649, 18.987418],
+            "Warszawa Młociny" => [52.295922, 20.93162],
+            "Warszawa Targówek" => [52.302543, 21.05757],
+            "Warszawa Ursynów" => [52.149941, 21.046973],
+            "Warszawa Wola Park" => [52.241896, 20.932863],
+            "Warszawa Złote Tarasy" => [52.229525, 21.002011],
+            "Włocławek" => [52.654833, 19.060865],
+            "Wrocław Pasaż Grunwaldzki" => [51.111982, 17.05918],
+            "Zabrze" => [50.317464, 18.777023],
+            "Zgorzelec" => [51.153404, 15.027501]
+        ]
     ];
 
     const EMPTY_TEXT = "";
@@ -65,10 +107,10 @@ class BackupController extends BaseController
 
         $successKinoMoranow = $this->_kinoMoranow();
 
-        // $successKinoteka = $this->_kinoteka();
+        $successKinoteka = $this->_kinoteka();
 
         // if($successKinoteka)
-        if($successMultikino && $successCinemacity && $successKinoMoranow)// && $successKinoteka)
+        if($successMultikino && $successCinemacity && $successKinoMoranow && $successKinoteka)
             return $this->sendResponse(self::EMPTY_TEXT, 'Backup completed successfully.');
         else
             return $this->sendError('Backup could not be completed.', 500);
@@ -101,12 +143,15 @@ class BackupController extends BaseController
                 //if locations does not exist, we'll create it
                 if(is_null($cinemaLocation)){ 
                     $city = explode(" ", $itemD['search']);
+                    $locationName = trim($itemD['search']);
                     //create locations of the cinema
                     $cinemaLocation = CinemaLocation::create([
                         CinemaLocation::LOCATION_ID => $itemD['id'],
-                        CinemaLocation::NAME => $itemD['search'],
+                        CinemaLocation::NAME => $locationName,
                         CinemaLocation::CITY => $city[0],
-                        CinemaLocation::CINEMA_ID => $cinema->id
+                        CinemaLocation::CINEMA_ID => $cinema->id,
+                        CinemaLocation::COORD_LATITUDE => self::MULTIKINO_DATA['coordinates'][$locationName][0], //remove whitespaces in item search and use it as indexes
+                        CinemaLocation::COORD_LONGITUDE => self::MULTIKINO_DATA['coordinates'][$locationName][1],
                     ]);
                 }
 
@@ -291,6 +336,8 @@ class BackupController extends BaseController
                 CinemaLocation::NAME => self::KINO_MURANOW_DATA['location'],
                 CinemaLocation::CINEMA_ID => $cinema->id,
                 CinemaLocation::CITY => self::KINO_MURANOW_DATA['city'],
+                CinemaLocation::COORD_LATITUDE => self::KINO_MURANOW_DATA['coord_latitude'],
+                CinemaLocation::COORD_LONGITUDE => self::KINO_MURANOW_DATA['coord_longitude'],
             ]);
         }
 
@@ -416,7 +463,8 @@ class BackupController extends BaseController
                 CinemaLocation::NAME => self::KINOTEKA_DATA['location'],
                 CinemaLocation::CINEMA_ID => $cinema->id,
                 CinemaLocation::CITY => self::KINOTEKA_DATA['city'],
-
+                CinemaLocation::COORD_LATITUDE => self::KINOTEKA_DATA['coord_latitude'],
+                CinemaLocation::COORD_LONGITUDE => self::KINOTEKA_DATA['coord_longitude'],
             ]);
         }
 
