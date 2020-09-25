@@ -18,6 +18,7 @@ class CreateMoviesInCinemaTable extends Migration
             $table->bigInteger('movie_id')->unsigned();
             $table->bigInteger('cinema_id')->unsigned();
             $table->bigInteger('location_id')->unsigned();
+            $table->string('language');
             $table->string('cinema_movie_url');
             $table->string('date_title');
             $table->timestamps();
