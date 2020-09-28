@@ -648,6 +648,7 @@ class BackupController extends BaseController
             foreach ($item["WhatsOnAlphabeticShedules"] as $key2 => $item2) {
                 $tmp = explode(", ", $item2['VersionTitle']);
                 // $tmp[0] === "2D" ---  Obviamos por el momento
+                $attr = "";
                 if($tmp[1] === "Napisy"){
                     $attr = "polskie napisy";
                 } else if($tmp[1] === "Dubbing"){
