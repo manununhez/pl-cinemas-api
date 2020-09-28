@@ -320,7 +320,7 @@ class BackupController extends BaseController
     }
 
     function getMoviesFromKinoMoranow($cinema, $date){
-        $client = new Client(HttpClient::create(['timeout' => 600])); //10min
+        $client = new Client();
 
         $crawler = $client->request('GET', $this->getKinoMoranowMoviesURL($date));
 
@@ -447,7 +447,7 @@ class BackupController extends BaseController
     }
 
     function getMoviesFromKinoteka($cinema, $date){
-        $client = new Client(HttpClient::create(['timeout' => 600])); //10min
+        $client = new Client();
 
         $crawler = $client->request('GET', $this->getKinotekaMoviesURL($date));
         
