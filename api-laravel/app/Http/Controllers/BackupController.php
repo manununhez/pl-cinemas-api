@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 
 use App\Movie;
 use App\Cinema;
@@ -101,6 +102,12 @@ class BackupController extends BaseController
     const EMPTY_TEXT = "";
 
     public function backupData(){
+        //clean previous saved data
+        DB::table(Movie::TABLE_NAME)->delete();
+        DB::table(MoviesInCinema::TABLE_NAME)->delete();
+        DB::table(CinemaLocation::TABLE_NAME)->delete();
+
+        //call and save new data
         $successMultikino = $this->_multikino();
         
         $successCinemacity = $this->_cinemacity();
@@ -109,7 +116,7 @@ class BackupController extends BaseController
 
         $successKinoteka = $this->_kinoteka();
 
-        // if($successKinoteka)
+        // if($successMultikino)
         if($successMultikino && $successCinemacity && $successKinoMoranow && $successKinoteka)
             return $this->sendResponse(self::EMPTY_TEXT, 'Backup completed successfully.');
         else
@@ -171,7 +178,7 @@ class BackupController extends BaseController
                     $linkCinemaMoviePage = self::MULTIKINO_BASE_URL.$item['FilmUrl'];
 
                     $movie = new Movie;
-                    $movie->title = $this->isNotNull($item['Title']);
+                    $movie->title = (strpos($this->isNotNull($item['Title']),'(Hit') !== false) ? substr($this->isNotNull($item['Title']), 0, strpos($this->isNotNull($item['Title']),'(Hit')) : $this->isNotNull($item['Title']); //We remove the "(Hit za ...) in title Multikino usually uses"
                     $movie->description = $this->isNotNull($item['ShortSynopsis']);//<-----
                     $movie->duration = (strpos($durationFromFilmParams, "minut") !== false) ? explode(" ",$durationFromFilmParams)[0] : 0; //extract movie duration value
                     

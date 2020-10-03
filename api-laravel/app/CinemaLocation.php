@@ -13,6 +13,7 @@ class CinemaLocation extends Model
     const CITY = 'city';
     const COORD_LATITUDE = 'coord_latitude';
     const COORD_LONGITUDE = 'coord_longitude';
+    const TABLE_NAME = 'cinema_locations';
 
     protected $table = 'cinema_locations';
 

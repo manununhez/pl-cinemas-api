@@ -13,6 +13,7 @@ class MoviesInCinema extends Model
     const CINEMA_MOVIE_URL = "cinema_movie_url";
     const DAY_TITLE = "date_title";
     const LANGUAGE = "language";
+    const TABLE_NAME = 'movies_in_cinema';
 
     protected $table = 'movies_in_cinema';
 

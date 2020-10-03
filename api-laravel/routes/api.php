@@ -50,7 +50,7 @@ Route::get('locations', function (Request $request) {
     $result = [
         "success" => true,
         "data" => $city->getCinemaCities(),
-        "message" => "Cities succesfully delivered."
+        "message" => "Cities successfully delivered."
     ];
     return $result;
 });
@@ -77,7 +77,7 @@ Route::get('attributes', function (Request $request) {
                 "angielski"
             ]
         ],
-        "message" => "Cities succesfully delivered."
+        "message" => "Cities successfully delivered."
     ];
     return $result;
 });

@@ -16,7 +16,8 @@ class Movie extends Model
     const YEAR = 'release_year';
     const TRAILER = 'trailer_url';
     const POSTER = 'poster_url';
-
+    const TABLE_NAME = 'movies';
+    
     protected $table = 'movies';
 
     // // If you wish to use a non-incrementing or a non-numeric primary key you must set the public $incrementing property on your model to false
