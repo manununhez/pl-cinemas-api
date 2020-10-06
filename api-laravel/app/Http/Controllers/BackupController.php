@@ -112,9 +112,9 @@ class BackupController extends BaseController
         
         $successCinemacity = $this->_cinemacity();
 
-        $successKinoMoranow = $this->_kinoMoranow();
-
         $successKinoteka = $this->_kinoteka();
+
+        $successKinoMoranow = $this->_kinoMoranow();
 
         // if($successMultikino)
         if($successMultikino && $successCinemacity && $successKinoMoranow && $successKinoteka)
@@ -514,7 +514,10 @@ class BackupController extends BaseController
                                     $classification = (strpos($classification, "lat") !== false) ? explode(" ", $classification)[1] : self::EMPTY_TEXT; //Extract number from text E.g. od 15 lat
 
                                     $movie = new Movie;
-                                    $movie->title = $this->isNodeIsNotEmptyText($node2->filter("div.movieDetails div.details p.head1"));
+
+                                    $title = $this->isNodeIsNotEmptyText($node2->filter("div.movieDetails div.details p.head1"));
+                                    $movie->title = (strpos($title,'(') !== false) ? substr($title, 0, strpos($title,'(')) : $title; //We remove the title in PL. E.g.:"Movie Title in PL (Movie title in EN) in title Kinoteka"
+
                                     $movie->description = $this->isNodeIsNotEmptyText($node2->filter("div.movieDesc"));
                                     $movie->duration = $duration; 
                                     $movie->genre = $genre;
