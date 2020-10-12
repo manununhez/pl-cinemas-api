@@ -31,7 +31,7 @@ class BackupController extends BaseController
     const KINOTEKA = "Kinoteka";
     const KINOTEKA_BASE_URL = "https://kinoteka.pl";
 
-    const DAYS_IN_ADVANCE = 4;
+    const DAYS_IN_ADVANCE = 15;
     const TIMEZONE = "Europe/Warsaw";
     const DAYS_START_FROM_TODAY = 0;
     const DAYS_START_FROM_TOMORROW = 1;
