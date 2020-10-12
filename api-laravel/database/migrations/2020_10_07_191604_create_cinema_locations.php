@@ -17,6 +17,7 @@ class CreateCinemaLocations extends Migration
             $table->id();
             $table->string('cinema_id');
             $table->string('city');
+            $table->string('city_code');
             $table->string('location_id');
             $table->string('name');
             $table->string('coord_latitude')->nullable();

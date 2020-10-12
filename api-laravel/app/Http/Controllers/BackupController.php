@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 use App\Movie;
 use App\Cinema;
@@ -15,7 +16,6 @@ use DateTime;
 use DateInterval;
 use Goutte\Client;
 
-//TODO Add backup of movies for the next X days in advance
 class BackupController extends BaseController
 {
     //TODO retrieve cinemas URL from DB, not from const!
@@ -31,7 +31,7 @@ class BackupController extends BaseController
     const KINOTEKA = "Kinoteka";
     const KINOTEKA_BASE_URL = "https://kinoteka.pl";
 
-    const DAYS_IN_ADVANCE = 15;
+    const DAYS_IN_ADVANCE = 4;
     const TIMEZONE = "Europe/Warsaw";
     const DAYS_START_FROM_TODAY = 0;
     const DAYS_START_FROM_TOMORROW = 1;
@@ -127,20 +127,23 @@ class BackupController extends BaseController
     function _multikino(){
     
         $cinema = Cinema::firstWhere(Cinema::NAME, '=', self::MULTIKINO);
-
+        $status = false;
         for ($x = self::DAYS_START_FROM_TODAY; $x <= self::DAYS_IN_ADVANCE; $x++) {
             $d = new DateTime(self::TIMEZONE);
             $d->add(new DateInterval('P'.$x.'D'));//('P30D'));
             $dateSearch = $d->format('d-m-Y');//date("d-m-Y");//now
             $date = $d->format(self::DATE_MOVIE_SEARCH_FORMAT);
-            $this->getMoviesFromMultikino($cinema, $dateSearch, $date);
+            $status = $this->getMoviesFromMultikino($cinema, $dateSearch, $date);
         }
 
-        return true;
+        return $status;
     }
 
     function getMoviesFromMultikino($cinema, $dateSearch, $date){
         $responseCinemas = $this->getMultikinoCinemasURL();
+        if($responseCinemas->failed())
+            return false;
+
         foreach ($responseCinemas["venues"] as $keyC => $itemC) {
             foreach ($itemC["cinemas"] as $keyD => $itemD) {
                 //CREATE CINEMA LOCATIONS
@@ -151,11 +154,13 @@ class BackupController extends BaseController
                 if(is_null($cinemaLocation)){ 
                     $city = explode(" ", $itemD['search']);
                     $locationName = trim($itemD['search']);
+                    $city_code = Str::lower(str_replace(" ", "_", $city[0]));
                     //create locations of the cinema
                     $cinemaLocation = CinemaLocation::create([
                         CinemaLocation::LOCATION_ID => $itemD['id'],
                         CinemaLocation::NAME => $locationName,
                         CinemaLocation::CITY => $city[0],
+                        CinemaLocation::CITY_CODE => $city_code,
                         CinemaLocation::CINEMA_ID => $cinema->id,
                         CinemaLocation::COORD_LATITUDE => self::MULTIKINO_DATA['coordinates'][$locationName][0], //remove whitespaces in item search and use it as indexes
                         CinemaLocation::COORD_LONGITUDE => self::MULTIKINO_DATA['coordinates'][$locationName][1],
@@ -164,13 +169,15 @@ class BackupController extends BaseController
 
                 //GET movies from the selected cinema location
                 $responseMovies = $this->getMultikinoMoviesURL($cinemaLocation->location_id, $dateSearch);
-                foreach ($responseMovies["WhatsOnAlphabeticFilms"] as $key => $item) {
+                if($responseMovies->failed())
+                    return false;
 
+                foreach ($responseMovies["WhatsOnAlphabeticFilms"] as $key => $item) {
                     $filmParams = collect($item['FilmParams'])->pluck('Title');
                     $durationFromFilmParams = $filmParams->pop();
 
                     $genreFromFilmParams = $filmParams->filter(function ($value, $key) {
-                                                        return (strpos($value, "Od lat") === false);
+                                                        return (!Str::contains($value, "Od lat"));
                                                     })->reduce(function ($carry, $item) {
                                                         return $carry."|".$item;
                                                     }, self::EMPTY_TEXT);
@@ -178,9 +185,9 @@ class BackupController extends BaseController
                     $linkCinemaMoviePage = self::MULTIKINO_BASE_URL.$item['FilmUrl'];
 
                     $movie = new Movie;
-                    $movie->title = (strpos($this->isNotNull($item['Title']),'(Hit') !== false) ? substr($this->isNotNull($item['Title']), 0, strpos($this->isNotNull($item['Title']),'(Hit')) : $this->isNotNull($item['Title']); //We remove the "(Hit za ...) in title Multikino usually uses"
+                    $movie->title = Str::contains($this->isNotNull($item['Title']),'(Hit') ? Str::substr($this->isNotNull($item['Title']), 0, strpos($this->isNotNull($item['Title']),'(Hit')) : $this->isNotNull($item['Title']); //We remove the "(Hit za ...) in title Multikino usually uses"
                     $movie->description = $this->isNotNull($item['ShortSynopsis']);//<-----
-                    $movie->duration = (strpos($durationFromFilmParams, "minut") !== false) ? explode(" ",$durationFromFilmParams)[0] : 0; //extract movie duration value
+                    $movie->duration = Str::contains($durationFromFilmParams, "minut") ? explode(" ",$durationFromFilmParams)[0] : 0; //extract movie duration value
                     
                     $movie->genre = $genreFromFilmParams;
                     $movie->classification = ($item['CertificateAge'] !== self::EMPTY_TEXT) ? $item['CertificateAge']."+" : $item['CertificateAge'];//<-----
@@ -196,37 +203,44 @@ class BackupController extends BaseController
                 }
             }   
         }
+        return true;
     }
 
     function _cinemacity(){
 
         $cinema = Cinema::firstWhere(Cinema::NAME, '=', self::CINEMACITY);
         $language = self::POLISH_LANGUAGE_CODE;
+        $status = false;
 
         for ($x = self::DAYS_START_FROM_TODAY; $x <= self::DAYS_IN_ADVANCE; $x++) {
             $date = new DateTime(self::TIMEZONE);
             $date->add(new DateInterval('P'.$x.'D'));//('P30D'));
             $date = $date->format(self::DATE_MOVIE_SEARCH_FORMAT);//date("d-m-Y");//now
-            $this->getMoviesFromCinemaCity($cinema, $date, self::POLISH_LANGUAGE_CODE);
+            $status = $this->getMoviesFromCinemaCity($cinema, $date, self::POLISH_LANGUAGE_CODE);
         }
                
-        return true;
+        return $status;
     }
 
     function getMoviesFromCinemaCity($cinema, $date, $language){
         $responseCinemas = $this->getCinemaCityCinemasURL($date, $language);
+        if($responseCinemas->failed())
+            return false;
+
         foreach ($responseCinemas["body"]["cinemas"] as $keyC => $itemC) {
             //CREATE CINEMA LOCATIONS
             $cinemaLocation = CinemaLocation::where(CinemaLocation::LOCATION_ID, '=', $itemC['id'])
                             ->where(CinemaLocation::CINEMA_ID, '=', $cinema->id)
                             ->first();
             //if locations does not exist, we'll create it
-            if(is_null($cinemaLocation)){ 
+            if(is_null($cinemaLocation)){
+                $city_code = Str::lower(str_replace(" ", "_", $itemC['addressInfo']['city']));
                 //create locations of the cinema
                 $cinemaLocation = CinemaLocation::create([
                     CinemaLocation::LOCATION_ID => $itemC['id'],
                     CinemaLocation::NAME => $itemC['displayName'],
                     CinemaLocation::CITY => $itemC['addressInfo']['city'],
+                    CinemaLocation::CITY_CODE => $city_code,
                     CinemaLocation::CINEMA_ID => $cinema->id,
                     CinemaLocation::COORD_LATITUDE => $itemC['latitude'],
                     CinemaLocation::COORD_LONGITUDE => $itemC['longitude']
@@ -238,6 +252,9 @@ class BackupController extends BaseController
 
             //GET movies from the selected cinema location
             $responseMovies = $this->getCinemaCityMoviesURL($cinemaLocation->location_id, $date, $language);
+            if($responseMovies->failed())
+                return false;
+
             foreach ($responseMovies["body"]["films"] as $key => $item) {
                 // plus / na / bez-ograniczen --->Age restriction
                 // dubbed, subbed, original-lang,first-subbed-lang ---> languages 
@@ -246,24 +263,24 @@ class BackupController extends BaseController
                 $movie_cinema_language = self::EMPTY_TEXT;
                 $classification = self::EMPTY_TEXT;
                 foreach ($item['attributeIds'] as &$attr) {
-                    if((strpos($attr, "lang") === false) && 
-                        (strpos($attr, "sub") === false) && 
-                        (strpos($attr, "dub") === false) &&  
-                        (strpos($attr, "2d") === false) && 
-                        (strpos($attr, "3d") === false) && 
-                        (strpos($attr, "na") === false) && 
-                        (strpos($attr, "plus") === false) && 
-                        (strpos($attr, "ograniczen") === false)){
+                    if(!Str::contains($attr, "lang") && 
+                        !Str::contains($attr, "sub") && 
+                        !Str::contains($attr, "dub") &&  
+                        !Str::contains($attr, "2d") && 
+                        !Str::contains($attr, "3d") && 
+                        !Str::contains($attr, "na") && 
+                        !Str::contains($attr, "plus") && 
+                        !Str::contains($attr, "ograniczen")){
                         $genre = $genre."|".$attr; //we saved only attributes refering to movie categories
                     }
 
-                    if((strpos($attr, "original-lang") !== false) || 
-                        (strpos($attr, "dubbed-lang") !== false) || 
-                        (strpos($attr, "subbed-lang") !== false)){
-                        if((strpos($attr, "original-lang") !== false)){
+                    if(Str::contains($attr, "original-lang") || 
+                        Str::contains($attr, "dubbed-lang") || 
+                        Str::contains($attr, "subbed-lang")){
+                        if(Str::contains($attr, "original-lang")){
                             $original_language = $this->getOriginalLanguageCinemaCity($attr);
                             $movie_cinema_language = ($movie_cinema_language === self::EMPTY_TEXT) ? $original_language : $original_language."|".$movie_cinema_language;
-                        } else if((strpos($attr, "subbed-lang") !== false)){
+                        } else if(Str::contains($attr, "subbed-lang")){
                             $sub = ($attr === "first-subbed-lang-pl") ? "polskie napisy" : $attr;
                             // $movie_cinema_language = $movie_cinema_language."(".$sub.")";
                             $movie_cinema_language = ($movie_cinema_language === self::EMPTY_TEXT) ? $sub : $movie_cinema_language."|".$sub;
@@ -273,9 +290,9 @@ class BackupController extends BaseController
                         }
                     }
 
-                    if((strpos($attr, "na") !== false) && 
-                        (strpos($attr, "plus") !== false) && 
-                        (strpos($attr, "ograniczen") !== false)){
+                    if(Str::contains($attr, "na") && 
+                        Str::contains($attr, "plus") && 
+                        Str::contains($attr, "ograniczen")){
                         $classification = $attr;
                     }
                 }
@@ -298,14 +315,16 @@ class BackupController extends BaseController
                 $this->_insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $movie, $date, $movie_cinema_language);
             }
         }
+
+        return true;
     }
 
     function getOriginalLanguageCinemaCity($attr){
-        if(strpos($attr, "original-lang-en") !== false){ //e.g. original-lang-en-us
+        if(Str::contains($attr, "original-lang-en")){ //e.g. original-lang-en-us
             return self::LANGUAGES_TO_PL['english'];
-        } else if(strpos($attr, "original-lang-pl") !== false){ 
+        } else if(Str::contains($attr, "original-lang-pl")){ 
             return self::LANGUAGES_TO_PL['polish'];
-        } else if(strpos($attr, "original-lang-fr") !== false){ 
+        } else if(Str::contains($attr, "original-lang-fr")){ 
             return self::LANGUAGES_TO_PL['french'];
         } else {
             return $attr;
@@ -336,13 +355,15 @@ class BackupController extends BaseController
                                         ->where(CinemaLocation::CINEMA_ID, '=', $cinema->id)
                                         ->first();
         //if locations does not exist, we'll create it
-        if(is_null($cinemaLocation)){ 
+        if(is_null($cinemaLocation)){
+            $city_code = Str::lower(str_replace(" ", "_", self::KINO_MURANOW_DATA['city']));
             //create locations of the cinema
             $cinemaLocation = CinemaLocation::create([
                 CinemaLocation::LOCATION_ID => self::KINO_MURANOW_DATA['id'],
                 CinemaLocation::NAME => self::KINO_MURANOW_DATA['location'],
                 CinemaLocation::CINEMA_ID => $cinema->id,
                 CinemaLocation::CITY => self::KINO_MURANOW_DATA['city'],
+                CinemaLocation::CITY_CODE => $city_code,
                 CinemaLocation::COORD_LATITUDE => self::KINO_MURANOW_DATA['coord_latitude'],
                 CinemaLocation::COORD_LONGITUDE => self::KINO_MURANOW_DATA['coord_longitude'],
             ]);
@@ -413,14 +434,14 @@ class BackupController extends BaseController
                 }
 
                 foreach($movieDetails as $key => $item) {
-                    $originalLang = substr($this->isNotNull($item['language']), 0, strpos($this->isNotNull($item['language']),'('));  //E.g., extract original lang before parenthesis: hiszpański (napisy polskie i angielskie)
-                    $movie->original_lang = (strpos($originalLang, "polski dubbing") !== false) ? self::EMPTY_TEXT : $originalLang;
+                    $originalLang = Str::substr($this->isNotNull($item['language']), 0, strpos($this->isNotNull($item['language']),'('));  //E.g., extract original lang before parenthesis: hiszpański (napisy polskie i angielskie)
+                    $movie->original_lang = Str::contains($originalLang, "polski dubbing") ? self::EMPTY_TEXT : $originalLang;
                     $movie->genre = $this->isNotNull($item['category']);
                     $movie->classification = self::EMPTY_TEXT;
                     $movie->release_year = $this->isNotNull($item['production_date']);
                     $movie->duration = isset($item['duration']) ? intval($item['duration']) : 0;
 
-                    $napisy = substr($this->isNotNull($item['language']), strpos($this->isNotNull($item['language']),'('), strpos($this->isNotNull($item['language']),')'));
+                    $napisy = Str::substr($this->isNotNull($item['language']), strpos($this->isNotNull($item['language']),'('), strpos($this->isNotNull($item['language']),')'));
                     if($napisy !== self::EMPTY_TEXT && $originalLang !== self::EMPTY_TEXT){
                         $movie_cinema_language = $originalLang."|".$napisy;
                     } else if($napisy !== self::EMPTY_TEXT && $originalLang === self::EMPTY_TEXT){
@@ -464,12 +485,14 @@ class BackupController extends BaseController
                                         ->first();
         //if locations does not exist, we'll create it
         if(is_null($cinemaLocation)){ 
+            $city_code = Str::lower(str_replace(" ", "_", self::KINOTEKA_DATA['city']));
             //create locations of the cinema
             $cinemaLocation = CinemaLocation::create([
                 CinemaLocation::LOCATION_ID => self::KINOTEKA_DATA['id'],
                 CinemaLocation::NAME => self::KINOTEKA_DATA['location'],
                 CinemaLocation::CINEMA_ID => $cinema->id,
                 CinemaLocation::CITY => self::KINOTEKA_DATA['city'],
+                CinemaLocation::CITY_CODE => $city_code,
                 CinemaLocation::COORD_LATITUDE => self::KINOTEKA_DATA['coord_latitude'],
                 CinemaLocation::COORD_LONGITUDE => self::KINOTEKA_DATA['coord_longitude'],
             ]);
@@ -511,12 +534,12 @@ class BackupController extends BaseController
                                     }
 
                                     $classification = $this->isNodeIsNotEmptyAttr($node2->filter("div.icons span.icon"), 'title');
-                                    $classification = (strpos($classification, "lat") !== false) ? explode(" ", $classification)[1] : self::EMPTY_TEXT; //Extract number from text E.g. od 15 lat
+                                    $classification = Str::contains($classification, "lat") ? explode(" ", $classification)[1] : self::EMPTY_TEXT; //Extract number from text E.g. od 15 lat
 
                                     $movie = new Movie;
 
                                     $title = $this->isNodeIsNotEmptyText($node2->filter("div.movieDetails div.details p.head1"));
-                                    $movie->title = (strpos($title,'(') !== false) ? substr($title, 0, strpos($title,'(')) : $title; //We remove the title in PL. E.g.:"Movie Title in PL (Movie title in EN) in title Kinoteka"
+                                    $movie->title = Str::contains($title,'(') ? Str::substr($title, 0, strpos($title,'(')) : $title; //We remove the title in PL. E.g.:"Movie Title in PL (Movie title in EN) in title Kinoteka"
 
                                     $movie->description = $this->isNodeIsNotEmptyText($node2->filter("div.movieDesc"));
                                     $movie->duration = $duration; 
@@ -537,21 +560,19 @@ class BackupController extends BaseController
                                     //polski dubbing
                                     //polska
                                     $movie->original_lang = self::EMPTY_TEXT;
-                                    if(strpos($movie_cinema_language, "angielsk") !== false){
-                                        if(strpos($movie_cinema_language, "angielska") !== false){
+                                    if(Str::contains($movie_cinema_language, "angielsk")){
+                                        if(Str::contains($movie_cinema_language, "angielska")){
                                             $movie->original_lang = self::LANGUAGES_TO_PL['english'];                                       
-                                        } else if(strpos($movie_cinema_language, "+ angielskie") !== false){
+                                        } else if(Str::contains($movie_cinema_language, "+ angielskie")){
                                             $movie->original_lang = "język napisów: angielski";
                                         }
-                                    } else if(strpos($movie_cinema_language, "polska") !== false){
+                                    } else if(Str::contains($movie_cinema_language, "polska")){
                                         $movie->original_lang = self::LANGUAGES_TO_PL['polish'];
-                                    } else if((strpos($movie_cinema_language, "lektor") !== false) || (strpos($movie_cinema_language, "dubbing") !== false)){
+                                    } else if(Str::contains($movie_cinema_language, "lektor") || Str::contains($movie_cinema_language, "dubbing")){
                                         $movie->original_lang = self::EMPTY_TEXT;
-                                    } else if(strpos($movie_cinema_language, "| napisy:") !== false){
+                                    } else if(Str::contains($movie_cinema_language, "| napisy:")){
                                         $movie->original_lang = explode("| napisy:", $movie_cinema_language)[0];
                                     }
-
-                                    // $movie->original_lang = (strpos($movie_cinema_language, "angielsk") !== false) ? self::LANGUAGES_TO_PL['english'] : $movie_cinema_language;//extend this for other languages
 
                                     $movie_cinema_language = explode("| subtitles", $movie_cinema_language)[0]; //e.g., We remove the english translation (| subt): "napisy: polskie + angielskie | subtitles: polish + english"
                                     $this->_insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $movie, $date, $movie_cinema_language);

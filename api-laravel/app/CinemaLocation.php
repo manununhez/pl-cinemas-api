@@ -11,6 +11,7 @@ class CinemaLocation extends Model
     const NAME = 'name';
     const CINEMA_ID = 'cinema_id';
     const CITY = 'city';
+    const CITY_CODE = 'city_code';
     const COORD_LATITUDE = 'coord_latitude';
     const COORD_LONGITUDE = 'coord_longitude';
     const TABLE_NAME = 'cinema_locations';
@@ -21,7 +22,7 @@ class CinemaLocation extends Model
     // public $incrementing = false;
     
     protected $fillable = [
-        self::NAME, self::CINEMA_ID, self::CITY, self::LOCATION_ID, self::COORD_LATITUDE, self::COORD_LONGITUDE
+        self::NAME, self::CINEMA_ID, self::CITY, self::CITY_CODE, self::LOCATION_ID, self::COORD_LATITUDE, self::COORD_LONGITUDE
     ];
 
     function getCinemaCities(){

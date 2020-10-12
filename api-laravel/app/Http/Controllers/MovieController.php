@@ -59,15 +59,27 @@ class MovieController extends BaseController
 
     public function getMoviesByLocation(Request $request){
         $input = $request->all();
+        $locationSearchTerm = "Warszawa"; //default
+        $dateSearchTerm = date("Y-m-d");//default today
+        $languageSearchTerm = array();
+        $cinemasSearchTerm = array();
+        
+        if(isset($input['city']) && $input['city'] !== ""){
+            $locationSearchTerm = $input['city'];
+        }
 
-        $locationSearchTerm = isset($input['city']) ? $input['city'] : "Warszawa";//isset($request->city) ? $request->city : "Warszawa";
+        if(isset($input['date']) && $input['date'] !== ""){
+            $dateSearchTerm = $input['date'];
+        }
 
-        $languageSearchTerm = $input['language'];//isset($input['language']) ? $input['language'] : "All";//isset($request->language) ? explode(",",$request->language) : "All";
+        if(isset($input['language']) && sizeof($input['language']) > 0){
+            $languageSearchTerm = $input['language'];
+        }
 
-        $cinemasSearchTerm = $input['cinema'];//isset($input['cinema']) ? $input['cinema'] : "All";//isset($request->getContent()->cinema) ? explode(",",$request->getContent()->cinema) : "All";
-
-        $dateSearchTerm = isset($input['date']) ? $input['date'] : date("Y-m-d");//today //isset($request->date) ? $request->date : date("Y-m-d");//today
-
+        if(isset($input['cinema']) && sizeof($input['cinema']) > 0){
+            $cinemasSearchTerm = $input['cinema'];
+        }
+        
         // // echo(json_encode($cinemasSearchTerm));
 
         // echo($dateSearchTerm);
