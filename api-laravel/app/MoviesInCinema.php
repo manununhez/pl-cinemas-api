@@ -17,15 +17,17 @@ class MoviesInCinema extends Model
 
     protected $table = 'movies_in_cinema';
 
-    protected $fillable = [ 
+    protected $fillable = [
         self::MOVIE_ID, self::CINEMA_ID, self::LOCATION_ID, self::CINEMA_MOVIE_URL, self::DAY_TITLE, self::LANGUAGE
     ];
 
-    public function movies(){
+    public function movies()
+    {
         return $this->belongsTo(Movie::class, self::ID, self::MOVIE_ID);
-    } 
+    }
 
-     public function cinemas(){
-      return $this->belongsTo(Cinema::class, self::ID, self::CINEMA_ID);
+    public function cinemas()
+    {
+        return $this->belongsTo(Cinema::class, self::ID, self::CINEMA_ID);
     }
 }

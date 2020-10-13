@@ -20,12 +20,13 @@ class CinemaLocation extends Model
 
     // // If you wish to use a non-incrementing or a non-numeric primary key you must set the public $incrementing property on your model to false
     // public $incrementing = false;
-    
+
     protected $fillable = [
         self::NAME, self::CINEMA_ID, self::CITY, self::CITY_CODE, self::LOCATION_ID, self::COORD_LATITUDE, self::COORD_LONGITUDE
     ];
 
-    function getCinemaCities(){
+    function getCinemaCities()
+    {
         // return $this->distinct()->orderBy(self::CITY)->groupBy(self::CITY, self::LOCATION_ID)->get([self::CITY, self::LOCATION_ID]);
 
         return $this->distinct()->orderBy(self::CITY)->groupBy(self::CITY)->get(self::CITY)->pluck(self::CITY);

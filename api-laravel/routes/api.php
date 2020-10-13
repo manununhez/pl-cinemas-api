@@ -28,15 +28,15 @@ Route::get('dates', function (Request $request) {
     $d = collect();
     for ($x = BackupController::DAYS_START_FROM_TODAY; $x <= BackupController::DAYS_IN_ADVANCE; $x++) {
         $date = new DateTime(BackupController::TIMEZONE);
-        $date->add(new DateInterval('P'.$x.'D'));//('P30D'));
-        $date = $date->format('Y-m-d');//date("d-m-Y");//now
+        $date->add(new DateInterval('P' . $x . 'D')); //('P30D'));
+        $date = $date->format('Y-m-d'); //date("d-m-Y");//now
 
         $d->push(["date" => $date]);
     }
     $result = [
         "success" => true,
         "data" => $d,
-        "message" => BackupController::DAYS_IN_ADVANCE." dates in advance."
+        "message" => BackupController::DAYS_IN_ADVANCE . " dates in advance."
     ];
     return $result;
 });
@@ -59,8 +59,8 @@ Route::get('attributes', function (Request $request) {
     $d = collect();
     for ($x = BackupController::DAYS_START_FROM_TODAY; $x <= BackupController::DAYS_IN_ADVANCE; $x++) {
         $date = new DateTime(BackupController::TIMEZONE);
-        $date->add(new DateInterval('P'.$x.'D'));//('P30D'));
-        $date = $date->format('Y-m-d');//date("d-m-Y");//now
+        $date->add(new DateInterval('P' . $x . 'D')); //('P30D'));
+        $date = $date->format('Y-m-d'); //date("d-m-Y");//now
 
         $d->push($date);
     }
@@ -73,9 +73,7 @@ Route::get('attributes', function (Request $request) {
             "cinemas" => $cinema->getCinemas(),
             "cities" => $city->getCinemaCities(),
             "days" => $d,
-            "languages" => [
-                "angielski"
-            ]
+            "languages" => BackupController::LANGUAGES
         ],
         "message" => "Cities successfully delivered."
     ];
@@ -85,10 +83,8 @@ Route::get('attributes', function (Request $request) {
 Route::post('movies/search', 'MovieController@getMoviesByLocation');
 // Route::get('movies', 'MovieController@index');
 Route::post('movies', 'MovieController@store');
-Route::delete('movies/{id}','MovieController@delete');
+Route::delete('movies/{id}', 'MovieController@delete');
 
 Route::get('cinemas', 'CinemaController@index');
 Route::post('cinemas', 'CinemaController@store');
-Route::delete('cinemas/{id}','CinemaController@delete');
-
-
+Route::delete('cinemas/{id}', 'CinemaController@delete');

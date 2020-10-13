@@ -17,19 +17,20 @@ class Movie extends Model
     const TRAILER = 'trailer_url';
     const POSTER = 'poster_url';
     const TABLE_NAME = 'movies';
-    
+
     protected $table = 'movies';
 
     // // If you wish to use a non-incrementing or a non-numeric primary key you must set the public $incrementing property on your model to false
     // public $incrementing = false;
-    
+
     protected $fillable = [
         self::TITLE, self::DESCRIPTION, self::ORIGINAL_LANG, self::DURATION, self::GENRE, self::CLASSIFICATION, self::YEAR, self::TRAILER, self::POSTER
     ];
 
-    public function cinemas(){
+    public function cinemas()
+    {
         return $this->hasMany(Cinema::class, MoviesInCinema::MOVIE_ID, self::ID)
-                    ->groupBy(MoviesInCinema::MOVIE_ID, 'created_at')
-                    ->orderBy('created_at','desc');
+            ->groupBy(MoviesInCinema::MOVIE_ID, 'created_at')
+            ->orderBy('created_at', 'desc');
     }
 }
