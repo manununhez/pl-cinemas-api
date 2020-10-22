@@ -25,7 +25,9 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         $schedule->command('db:sync')
-                ->everyMinute()->when(function () {
+                ->daily() //daily at midnight
+                ->timezone('Europe/Warsaw')
+                ->when(function () {
                     return true;
                 });	
     }
