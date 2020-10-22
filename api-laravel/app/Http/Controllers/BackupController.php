@@ -15,6 +15,7 @@ use App\CinemaLocation;
 use DateTime;
 use DateInterval;
 use Goutte\Client;
+use Exception;
 
 class BackupController extends BaseController
 {
@@ -374,7 +375,11 @@ class BackupController extends BaseController
             $date = new DateTime(self::TIMEZONE);
             $date->add(new DateInterval('P' . $x . 'D')); //('P30D'));
             $date = $date->format(self::DATE_MOVIE_SEARCH_FORMAT); //date("d-m-Y");//now
-            $this->getMoviesFromKinoMoranow($cinema, $date);
+            try{
+                $this->getMoviesFromKinoMoranow($cinema, $date);
+            } catch (Exception $e) {
+                return false;
+            }
         }
 
         return true;
@@ -504,7 +509,11 @@ class BackupController extends BaseController
             $date = new DateTime(self::TIMEZONE);
             $date->add(new DateInterval('P' . $x . 'D')); //('P30D'));
             $date = $date->format(self::DATE_MOVIE_SEARCH_FORMAT); //date("d-m-Y");//now
-            $this->getMoviesFromKinoteka($cinema, $date);
+            try{
+                $this->getMoviesFromKinoteka($cinema, $date);
+            } catch (Exception $e) {
+                return false;
+            }
         }
 
         return true;
