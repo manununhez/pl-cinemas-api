@@ -162,12 +162,27 @@ class MovieController extends BaseController
                 ]);
             }
 
-            $movie[MoviesInCinema::DAY_TITLE] = $dateSearchTerm;
-            $movie[CinemaLocation::CITY] = $locationSearchTerm;
+            //$movie[MoviesInCinema::DAY_TITLE] = $dateSearchTerm;
+            //$movie[CinemaLocation::CITY] = $locationSearchTerm;
             $resultMoviesID->push([
-                "movie" => $movie,
+                Movie::ID => $movie[Movie::ID],
+                Movie::TITLE => $movie[Movie::TITLE],
+                Movie::DESCRIPTION => $movie[Movie::DESCRIPTION],
+                Movie::ORIGINAL_LANG => $movie[Movie::ORIGINAL_LANG],
+                Movie::DURATION => $movie[Movie::DURATION],
+                Movie::CLASSIFICATION => $movie[Movie::CLASSIFICATION],
+                Movie::GENRE => $movie[Movie::GENRE],
+                Movie::YEAR => $movie[Movie::YEAR],
+                MoviesInCinema::DAY_TITLE => $dateSearchTerm,
+                CinemaLocation::CITY => $locationSearchTerm,
+                Movie::TRAILER => $movie[Movie::TRAILER],
+                Movie::POSTER => $movie[Movie::POSTER],
                 "cinemas" => $resultCinemas
             ]);
+
+                // "created_at": "2020-10-22T15:30:30.000000Z",
+                // "updated_at": "2020-10-22T15:30:58.000000Z",
+                // "city": "Warszawa"
         }
 
         return $this->sendResponse($resultMoviesID, 'movies retrieved successfully.');
