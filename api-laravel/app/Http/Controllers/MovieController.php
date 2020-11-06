@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 use App\Movie;
 use App\Cinema;
 use App\CinemaLocation;
 use App\MoviesInCinema;
 use Validator;
+use DateTime;
+use DateInterval;
 
 
 class MovieController extends BaseController
@@ -57,7 +60,7 @@ class MovieController extends BaseController
     }
 
 
-    public function getMoviesByLocation(Request $request)
+    public function searchMoviesByFilterAttr(Request $request)
     {
         $input = $request->all();
         $locationSearchTerm = "Warszawa"; //default
@@ -81,12 +84,6 @@ class MovieController extends BaseController
             $cinemasSearchTerm = $input['cinema'];
         }
 
-        // // echo(json_encode($cinemasSearchTerm));
-
-        // echo($dateSearchTerm);
-        // echo(gettype($cinemasSearchTerm));
-        // echo(gettype($languageSearchTerm));
-        // echo($locationSearchTerm);
 
         if (sizeof($cinemasSearchTerm) > 0) {
             $cinemas = Cinema::where(function ($where) use ($cinemasSearchTerm) {
@@ -133,8 +130,6 @@ class MovieController extends BaseController
                 ->pluck(Movie::ID); //Order asc by Title
         }
 
-
-
         $resultMoviesID = collect();
         foreach ($moviesIDOrdered as $key => $value) {
             $movie = Movie::where(Movie::ID, $value)->first();
@@ -179,13 +174,122 @@ class MovieController extends BaseController
                 Movie::POSTER => $movie[Movie::POSTER],
                 "cinemas" => $resultCinemas
             ]);
-
-                // "created_at": "2020-10-22T15:30:30.000000Z",
-                // "updated_at": "2020-10-22T15:30:58.000000Z",
-                // "city": "Warszawa"
         }
 
         return $this->sendResponse($resultMoviesID, 'movies retrieved successfully.');
+    }
+
+    public function getAttributes(Request $request)
+    {
+        $filteredMoviesGroupByDate = $this->getMoviesDateTitleAvailabilityByFilterAttr($request);
+
+        $d = collect();
+        $count = 0;
+        for ($x = BackupController::DAYS_START_FROM_TODAY; $x <= BackupController::DAYS_IN_ADVANCE; $x++) {
+            $date = new DateTime(BackupController::TIMEZONE);
+            $date->add(new DateInterval('P' . $x . 'D')); //('P30D'));
+            $date = $date->format('Y-m-d'); //date("d-m-Y");//now
+            
+            //**** version 1
+            // $total = MoviesInCinema::select(DB::raw('count(*) as total'))
+            //                         ->whereIN(MoviesInCinema::MOVIE_ID, $moviesIDOrdered)
+            //                         ->whereIN(MoviesInCinema::LOCATION_ID, $locationIDTmp)
+            //                         ->where(MoviesInCinema::DAY_TITLE, $date)
+            //                         ->groupBy(MoviesInCinema::DAY_TITLE)
+            //                         ->first();
+
+            // $d->push(["date" => $date, "total" => $total['total']]);
+
+            //**** version 2
+            if($date === $filteredMoviesGroupByDate->get($count)['date_title']){
+                $d->push(["date" => $date, "movies_available" => true]);
+                $count++;
+            } else {
+                $d->push(["date" => $date, "movies_available" => false]);
+            }  
+        }
+
+        $city = new CinemaLocation();
+        $cinema = new Cinema();
+        $result = [
+                "cinemas" => $cinema->getCinemas(),
+                "cities" => $city->getCinemaCities(),
+                "days" => $d,
+                "languages" => BackupController::LANGUAGES
+                ];
+
+        return $this->sendResponse($result, 'movies retrieved successfully.');
+    }
+
+    private function getMoviesDateTitleAvailabilityByFilterAttr(Request $request){
+        $input = $request->all();
+        $locationSearchTerm = "Warszawa"; //default
+        $languageSearchTerm = array();
+        $cinemasSearchTerm = array();
+
+        if (isset($input['city']) && $input['city'] !== "") {
+            $locationSearchTerm = $input['city'];
+        }
+
+        if (isset($input['language']) && sizeof($input['language']) > 0) {
+            $languageSearchTerm = $input['language'];
+        }
+
+        if (isset($input['cinema']) && sizeof($input['cinema']) > 0) {
+            $cinemasSearchTerm = $input['cinema'];
+        }
+
+
+        if (sizeof($cinemasSearchTerm) > 0) {
+            $cinemas = Cinema::where(function ($where) use ($cinemasSearchTerm) {
+                foreach ($cinemasSearchTerm as $count => $text) {
+                    if ($count === 0) {
+                        $where->where(Cinema::NAME, 'LIKE', "%{$text}%");
+                    } else {
+                        $where->orWhere(Cinema::NAME, 'LIKE', "%{$text}%");
+                    }
+                }
+            })->pluck(Cinema::ID);
+
+            $locationIDTmp = CinemaLocation::whereIn(CinemaLocation::CINEMA_ID, $cinemas)
+                ->where(CinemaLocation::CITY, "LIKE", $locationSearchTerm)
+                ->pluck(CinemaLocation::ID);
+        } else {
+            $locationIDTmp = CinemaLocation::where(CinemaLocation::CITY, "LIKE", $locationSearchTerm)
+                ->pluck(CinemaLocation::ID);
+        }
+
+        $movieCinemaTmp = MoviesInCinema::whereIN(MoviesInCinema::LOCATION_ID, $locationIDTmp)
+                                        ->get();
+
+        $moviesTmp = $movieCinemaTmp->pluck(MoviesInCinema::MOVIE_ID)->unique();
+
+        if (sizeof($languageSearchTerm) > 0) {
+            $moviesIDOrdered = Movie::whereIN(Movie::ID, $moviesTmp)
+                                    ->where(function ($where) use ($languageSearchTerm) {
+                                        foreach ($languageSearchTerm as $count => $text) {
+                                            if ($count === 0) {
+                                                $where->where(Movie::ORIGINAL_LANG, 'LIKE', "%{$text}%");
+                                            } else {
+                                                $where->orWhere(Movie::ORIGINAL_LANG, 'LIKE', "%{$text}%");
+                                            }
+                                        }
+                                    })
+                                    ->orderBy(Movie::TITLE)
+                                    ->pluck(Movie::ID); //Order asc by Title
+        } else {
+            $moviesIDOrdered = Movie::whereIN(Movie::ID, $moviesTmp)
+                                    ->orderBy(Movie::TITLE)
+                                    ->pluck(Movie::ID); //Order asc by Title
+        }
+
+        $filteredMoviesGroupByDate = MoviesInCinema::select(MoviesInCinema::DAY_TITLE) //DB::raw('count(*) > 0 as enable'), 
+                                ->whereIN(MoviesInCinema::MOVIE_ID, $moviesIDOrdered)
+                                ->whereIN(MoviesInCinema::LOCATION_ID, $locationIDTmp)
+                                ->groupBy(MoviesInCinema::DAY_TITLE)
+                                ->get();
+
+        return $filteredMoviesGroupByDate;
     }
 
     /**
