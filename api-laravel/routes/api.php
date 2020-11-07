@@ -24,6 +24,7 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 });
 
 Route::get('backup', 'BackupController@backupData');
+Route::get('backup2', 'BackupTmpController@backupData');
 
 Route::get('movies-1', 'CinemaCityController@index');
 Route::get('movies-2', 'MultikinoController@index');
