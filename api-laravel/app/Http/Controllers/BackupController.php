@@ -100,7 +100,7 @@ class BackupController extends BaseController
             "Tychy City Point" => [50.11174093713318, 18.98805127028631],
             "Tychy Gemini Park"=> [50.09717906729158, 19.0086663837789],
             "Warszawa Atrium Reduta"=> [52.21328140079308, 20.951135897375696],
-            "Warszawa Atrium Targówek"[52.30251826296771, 21.057606955051302],
+            "Warszawa Atrium Targówek" => [52.30251826296771, 21.057606955051302],
             "Warszawa Młociny" => [52.295922, 20.93162],
             "Warszawa Ursynów" => [52.149941, 21.046973],
             "Warszawa Wola Park" => [52.241896, 20.932863],
