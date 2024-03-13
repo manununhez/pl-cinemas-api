@@ -738,13 +738,13 @@ class BackupController extends BaseController
                 $tmp = explode(", ", $item2['VersionTitle']);
                 // $tmp[0] === "2D" ---  Obviamos por el momento
                 $attr = "";
-                if ($tmp[1] === "Napisy") {
+                if (strtoupper($tmp[1]) === "napisy") {
                     $attr = "polskie napisy";
                     //$originalLang = "polskie napisy";
-                } else if ($tmp[1] === "Dubbing") {
+                } else if (strtoupper($tmp[1]) === "dubbing") {
                     $attr = "polskie dubbing";
                     $originalLang = "polskie dubbing";
-                } else if ($tmp[1] === "PL") {
+                } else if (strtoupper($tmp[1]) === "pl") {
                     $attr = "polskie";
                     $originalLang = "polskie";
                 }
