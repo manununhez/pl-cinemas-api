@@ -20,6 +20,28 @@ class Movie extends Model
 
     protected $table = 'movies';
 
+    function __construct(
+        $title = null,
+        $originalLang = null,
+        $description = null,
+        $poster = null,
+        $trailer = null,
+        $genre = null,
+        $classification = null,
+        $releaseYear = null,
+        $duration = null
+    ) {
+        $this->title = $title;
+        $this->original_lang = $originalLang;
+        $this->description = $description;
+        $this->poster_url = $poster;
+        $this->trailer_url = $trailer;
+        $this->genre = $genre;
+        $this->classification = $classification;
+        $this->release_year = $releaseYear;
+        $this->duration = $duration;
+    }
+
     // // If you wish to use a non-incrementing or a non-numeric primary key you must set the public $incrementing property on your model to false
     // public $incrementing = false;
 
