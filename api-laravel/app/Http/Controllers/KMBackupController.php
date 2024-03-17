@@ -22,7 +22,6 @@ use Exception;
 class KMBackupController
 {
     const KINO_MORANOW = "Kino Muranow";
-    const KINO_MORANOW_BASE_URL = "https://kinomuranow.pl/";
     const KINO_MURANOW_DATA = array(
         "id" => 156,
         "city" => "Warszawa",
@@ -56,7 +55,7 @@ class KMBackupController
         $cinemaLocation = $this->createCinemaLocation($cinema);
 
         $client = new HttpBrowser(HttpClient::create(['timeout' => BackupController::HTTP_CLIENT_TIMEOUT]));
-        $client->request('GET', $this->getKinoMoranowMoviesURL($date));
+        $client->request('GET', $this->getKinoMoranowMoviesURL($cinema->website, $date));
         $html = $client->getResponse()->getContent();
         $crawler = new Crawler($html);
 
@@ -69,7 +68,7 @@ class KMBackupController
                 if (!MoviesInCinema::where('cinema_id', $cinema->id)->where('cinema_movie_url', $linkCinemaMoviePage)->exists()) {
                     $secondCrawler = $client->request('GET', $linkCinemaMoviePage);
 
-                    $movieDetails = $this->extractMovieDetails($secondCrawler);
+                    $movieDetails = $this->extractMovieDetails($cinema->website, $secondCrawler);
 
                     $movie = $this->createMovie($movieDetails);
 
@@ -103,7 +102,7 @@ class KMBackupController
         return $cinemaLocation;
     }
 
-    private function extractMovieDetails($crawler)
+    private function extractMovieDetails($baseUrl, $crawler)
     {
         $description =  $crawler->filter("div.node__desc")->text();
         if ($description == self::EMPTY_TEXT) {
@@ -112,7 +111,7 @@ class KMBackupController
 
         $trailer = Utils::isNodeIsNotEmptyAttr($crawler->filter('iframe.youtube-player'), 'src');
 
-        $poster = self::KINO_MORANOW_BASE_URL . Utils::isNodeIsNotEmptyAttr($crawler->filter('img.image-style-slide'), 'src');
+        $poster = $baseUrl . Utils::isNodeIsNotEmptyAttr($crawler->filter('img.image-style-slide'), 'src');
 
         $durationNode = $crawler->filter('div.field--name-field-movie-duration div.field__item');
         $duration = 0;
@@ -163,8 +162,8 @@ class KMBackupController
         }
     }
 
-    private function getKinoMoranowMoviesURL($date)
+    private function getKinoMoranowMoviesURL($baseUrl, $date)
     {
-        return self::KINO_MORANOW_BASE_URL . "repertuar?month=" . $date;
+        return $baseUrl . "repertuar?month=" . $date;
     }
 }

@@ -58,9 +58,6 @@ class BackupController extends BaseController
         $successCinemacity = $this->backupCinemacity();
 
         // $successMultikino = $this->backupCT();
-        // $successKinoteka = $this->backupKinoteka();
-
-
 
         if ($successKinoMoranow && $successCinemacity) {
             // if ($successMultikino && $successCinemacity && $successKinoMoranow && $successKinoteka)
@@ -93,11 +90,5 @@ class BackupController extends BaseController
     {
         $kinoMoranowBackup = new KMBackupController();
         return $kinoMoranowBackup->backup();
-    }
-
-    private function backupKinoteka()
-    {
-        $kinotekaBackup = new KTBackupController();
-        return $kinotekaBackup->backup();
     }
 }
