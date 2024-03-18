@@ -57,20 +57,11 @@ class BackupController extends BaseController
         $successKinoMoranow = $this->backupKinoMoranow();
         $successCinemacity = $this->backupCinemacity();
 
-        // $successMultikino = $this->backupCT();
-
         if ($successKinoMoranow && $successCinemacity) {
-            // if ($successMultikino && $successCinemacity && $successKinoMoranow && $successKinoteka)
             return $this->sendResponse(self::EMPTY_TEXT, 'Backup completed successfully.');
         } else {
             return $this->sendError('Backup could not be completed.', 500);
         }
-    }
-
-    private function backupCT()
-    {
-        $multikinoBackup = new CTBackupController();
-        return $multikinoBackup->test();
     }
 
 

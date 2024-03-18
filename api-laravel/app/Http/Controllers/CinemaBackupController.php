@@ -57,7 +57,7 @@ class CinemaBackupController
                 $linkCinemaMoviePage = $websiteCinema . "/" . $cinemaID . "#/buy-tickets-by-cinema?in-cinema=" . $cinemaLocation->id . "&at=" . $date . "&for-movie=" . $item["id"] . "&view-mode=list";
 
                 $movie = $this->extractMovieDetails($item);
-                $movie_cinema_language = $this->extractMovieLanguage($movie);
+                $movie_cinema_language = $this->extractMovieLanguage($item);
 
                 Utils::insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $movie, $date, $movie_cinema_language);
             }
