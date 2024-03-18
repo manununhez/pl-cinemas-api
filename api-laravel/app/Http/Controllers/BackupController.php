@@ -11,7 +11,7 @@ use App\CinemaLocation;
 class BackupController extends BaseController
 {
     const HTTP_CLIENT_TIMEOUT = 60;
-    const DAYS_IN_ADVANCE = 15;
+    const DAYS_IN_ADVANCE = 7;
     const TIMEZONE = "Europe/Warsaw";
     const DAYS_START_FROM_TODAY = 0;
     const DAYS_START_FROM_TOMORROW = 1;
