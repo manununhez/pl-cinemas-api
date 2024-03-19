@@ -137,7 +137,9 @@ class MovieController extends BaseController
 
         $resultMoviesID = collect();
         foreach ($moviesIDOrdered as $key => $value) {
-            $movie = Movie::where(Movie::ID, $value)->first();
+            $movie = Movie::where(Movie::ID, $value)
+                ->select(['id', 'title', 'description', 'duration', 'genre', 'original_lang', 'classification', 'release_year', 'trailer_url', 'poster_url']) // Exclude created_at and updated_at
+                ->first();
 
             $locations = MoviesInCinema::where(MoviesInCinema::MOVIE_ID, $movie->id)
                 ->whereIn(MoviesInCinema::LOCATION_ID, $locationIDTmp)

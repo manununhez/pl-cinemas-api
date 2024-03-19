@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
  */
 class BaseController extends Controller
 {
-	/**
+    /**
      * success response method.
      *
      * @return \Illuminate\Http\Response
@@ -20,7 +20,10 @@ class BaseController extends Controller
     {
         $response = [
             'success' => true,
-            'data'    => $result,
+            'data'    => [
+                'result' => $result,
+                'timestamp' => now()->toDateTimeString(), // Add timestamp to the data
+            ],
             'message' => $message,
         ];
 
@@ -28,7 +31,7 @@ class BaseController extends Controller
         return response()->json($response, $code);
     }
 
-	/**
+    /**
      * return error response.
      *
      * @return \Illuminate\Http\Response
@@ -41,7 +44,7 @@ class BaseController extends Controller
         ];
 
 
-        if(!empty($errorMessages)){
+        if (!empty($errorMessages)) {
             $response['message'] = $errorMessages;
         }
 
