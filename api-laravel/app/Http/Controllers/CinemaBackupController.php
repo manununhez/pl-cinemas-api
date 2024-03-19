@@ -56,10 +56,9 @@ class CinemaBackupController
             foreach ($responseMovies["body"]["films"] as $key => $item) {
                 $linkCinemaMoviePage = $websiteCinema . "/" . $cinemaID . "#/buy-tickets-by-cinema?in-cinema=" . $cinemaLocation->id . "&at=" . $date . "&for-movie=" . $item["id"] . "&view-mode=list";
 
-                $movie = $this->extractMovieDetails($item);
-                $movie_cinema_language = $this->extractMovieLanguage($item);
+                $data = $this->extractMovieDetails($item);
 
-                Utils::insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $movie, $date, $movie_cinema_language);
+                Utils::insertMovie($cinema->id, $cinemaLocation->id, $linkCinemaMoviePage, $data['movie'], $date, $data['movie_cinema_language']);
             }
         }
 
@@ -91,14 +90,16 @@ class CinemaBackupController
         return $cinemaLocation;
     }
 
-    private function extractMovieDetails($movie)
+    private function extractMovieDetails($movieInfo)
     {
         // plus / na / bez-ograniczen --->Age restriction   
         $genre = self::EMPTY_TEXT;
         $original_language = self::EMPTY_TEXT;
         $classification = self::EMPTY_TEXT;
+        // dubbed, subbed, original-lang,first-subbed-lang ---> languages 
+        $movie_cinema_language = self::EMPTY_TEXT;
 
-        foreach ($movie['attributeIds'] as &$attr) {
+        foreach ($movieInfo['attributeIds'] as &$attr) {
             if (
                 !Str::contains($attr, "lang") &&
                 !Str::contains($attr, "sub") &&
@@ -119,29 +120,7 @@ class CinemaBackupController
             ) {
                 $classification = $attr;
             }
-        }
 
-
-        $movie = new Movie;
-        $movie->title = Utils::isNotNull($movie['name']);
-        $movie->description = self::EMPTY_TEXT;
-        $movie->duration = ($movie['length'] !== self::EMPTY_TEXT) ? intval($movie['length']) : 0;
-        $movie->original_lang = $original_language;
-        $movie->genre = $genre;
-        $movie->classification = $classification;
-        $movie->release_year = Utils::isNotNull($movie['releaseYear']);
-        $movie->poster_url = Utils::isNotNull($movie['posterLink']);
-        $movie->trailer_url = Utils::isNotNull($movie['videoLink']);
-
-        return $movie;
-    }
-
-    private function extractMovieLanguage($movie)
-    {
-        // dubbed, subbed, original-lang,first-subbed-lang ---> languages 
-        $movie_cinema_language = self::EMPTY_TEXT;
-
-        foreach ($movie['attributeIds'] as &$attr) {
             if (
                 Str::contains($attr, "original-lang") ||
                 Str::contains($attr, "dubbed-lang") ||
@@ -161,7 +140,19 @@ class CinemaBackupController
             }
         }
 
-        return $movie_cinema_language;
+
+        $movie = new Movie;
+        $movie->title = Utils::isNotNull($movieInfo['name']);
+        $movie->description = self::EMPTY_TEXT;
+        $movie->duration = ($movieInfo['length'] !== self::EMPTY_TEXT) ? intval($movieInfo['length']) : 0;
+        $movie->original_lang = $original_language;
+        $movie->genre = $genre;
+        $movie->classification = $classification;
+        $movie->release_year = Utils::isNotNull($movieInfo['releaseYear']);
+        $movie->poster_url = Utils::isNotNull($movieInfo['posterLink']);
+        $movie->trailer_url = Utils::isNotNull($movieInfo['videoLink']);
+
+        return array("movie" => $movie, "movie_cinema_language" => $movie_cinema_language);
     }
 
     private function getOriginalLanguageCinemaCity($attr)
