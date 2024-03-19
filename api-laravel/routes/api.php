@@ -68,16 +68,22 @@ Route::get('attributes', function (Request $request) {
     $city = new CinemaLocation();
     $cinema = new Cinema();
     $result = [
-        "success" => true,
-        "data" => [
-            "cinemas" => $cinema->getCinemas(),
-            "cities" => $city->getCinemaCities(),
-            "days" => $d,
-            "languages" => BackupController::LANGUAGES
-        ],
-        "message" => "Cities successfully delivered."
+        "cinemas" => $cinema->getCinemas(),
+        "cities" => $city->getCinemaCities(),
+        "days" => $d,
+        "languages" => BackupController::LANGUAGES
     ];
-    return $result;
+    $message = "Cities successfully delivered.";
+
+    $response = [
+        'success' => true,
+        'data'    => [
+            'result' => $result,
+            'timestamp' => now()->toDateTimeString(), // Add timestamp to the data
+        ],
+        'message' => $message,
+    ];
+    return $response;
 });
 
 Route::post('movies/search', 'MovieController@getMoviesByLocation');
