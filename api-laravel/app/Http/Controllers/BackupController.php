@@ -54,8 +54,8 @@ class BackupController extends BaseController
         DB::table(CinemaLocation::TABLE_NAME)->delete();
 
         //call and save new data
-        $successKinoMoranow = $this->backupKinoMoranow();
         $successCinemacity = $this->backupCinemacity();
+        $successKinoMoranow = $this->backupKinoMoranow();
 
         if ($successKinoMoranow && $successCinemacity) {
             return $this->sendResponse(self::EMPTY_TEXT, 'Backup completed successfully.');
