@@ -55,36 +55,9 @@ Route::get('locations', function (Request $request) {
     return $result;
 });
 
-Route::get('attributes', function (Request $request) {
-    $d = collect();
-    for ($x = BackupController::DAYS_START_FROM_TODAY; $x <= BackupController::DAYS_IN_ADVANCE; $x++) {
-        $date = new DateTime(BackupController::TIMEZONE);
-        $date->add(new DateInterval('P' . $x . 'D')); //('P30D'));
-        $date = $date->format('Y-m-d'); //date("d-m-Y");//now
+Route::get('attributes', 'AttributeController@index');
 
-        $d->push($date);
-    }
-
-    $city = new CinemaLocation();
-    $cinema = new Cinema();
-    $result = [
-        "cinemas" => $cinema->getCinemas(),
-        "cities" => $city->getCinemaCities(),
-        "days" => $d,
-        "languages" => BackupController::LANGUAGES
-    ];
-    $message = "Cities successfully delivered.";
-
-    $response = [
-        'success' => true,
-        'data'    => [
-            'result' => $result,
-            'timestamp' => now()->toDateTimeString(), // Add timestamp to the data
-        ],
-        'message' => $message,
-    ];
-    return $response;
-});
+Route::get('sync', 'SyncController@index');
 
 Route::post('movies/search', 'MovieController@getMoviesByLocation');
 // Route::get('movies', 'MovieController@index');

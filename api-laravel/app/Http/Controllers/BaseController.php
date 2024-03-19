@@ -20,10 +20,7 @@ class BaseController extends Controller
     {
         $response = [
             'success' => true,
-            'data'    => [
-                'result' => $result,
-                'timestamp' => now()->toDateTimeString(), // Add timestamp to the data
-            ],
+            'data'    => $result,
             'message' => $message,
         ];
 
