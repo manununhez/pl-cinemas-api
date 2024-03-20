@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 use App\Movie;
 use App\MoviesInCinema;
@@ -57,9 +58,21 @@ class BackupController extends BaseController
         $successCinemacity = $this->backupCinemacity();
         $successKinoMoranow = $this->backupKinoMoranow();
 
+        // Check if backups were successful
         if ($successKinoMoranow && $successCinemacity) {
-            return $this->sendResponse(self::EMPTY_TEXT, 'Backup completed successfully.');
+            // Make request to second API endpoint
+            $response = Http::get('https://api.kinema.today/collect-data');
+
+            // Check if the API call was successful
+            if ($response->successful()) {
+                // Return success response
+                return $this->sendResponse(self::EMPTY_TEXT, 'Backup completed successfully.');
+            } else {
+                // Return error response based on API response
+                return $this->sendError('Backup could not be completed. Failed to collect data from API.', 500);
+            }
         } else {
+            // Return error response if backups were not successful
             return $this->sendError('Backup could not be completed.', 500);
         }
     }
