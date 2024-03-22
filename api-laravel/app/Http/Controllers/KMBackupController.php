@@ -54,7 +54,7 @@ class KMBackupController
     {
         $cinemaLocation = $this->createCinemaLocation($cinema);
 
-        $client = new HttpBrowser(HttpClient::create(['timeout' => BackupController::HTTP_CLIENT_TIMEOUT]));
+        $client = new HttpBrowser(HttpClient::create());
         $client->request('GET', $this->getKinoMoranowMoviesURL($cinema->website, $date));
         $html = $client->getResponse()->getContent();
         $crawler = new Crawler($html);
